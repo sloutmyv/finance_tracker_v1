@@ -7,9 +7,19 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header bg-danger text-white">
-                <h3>Delete Household Member</h3>
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-person-x-fill me-2 fs-4"></i>
+                    <h3 class="mb-0">Delete Household Member</h3>
+                </div>
             </div>
             <div class="card-body">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'financial_settings' %}">Family Settings</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Delete Member</li>
+                    </ol>
+                </nav>
                 <p class="lead">Are you sure you want to delete <strong>{{ member.first_name }} {{ member.last_name }}</strong>?</p>
                 
                 <div class="alert alert-warning">
@@ -32,8 +42,12 @@
                 <form method="post" class="mt-4">
                     {% csrf_token %}
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'financial_settings' %}" class="btn btn-outline-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-danger">Delete Member</button>
+                        <a href="{% url 'financial_settings' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-1"></i> Delete Member
+                        </button>
                     </div>
                 </form>
             </div>

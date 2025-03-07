@@ -6,11 +6,19 @@
 <div class="row">
     <div class="col-md-12">
         <div class="card">
-            <div class="card-header">
-                <h3>Financial Environment Settings</h3>
+            <div class="card-header bg-primary text-white d-flex align-items-center">
+                <i class="bi bi-people-fill me-2 fs-4"></i>
+                <h3 class="mb-0">Tax Household Settings</h3>
             </div>
             <div class="card-body">
-                <h4 class="mb-4">Tax Household</h4>
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Family Settings</li>
+                    </ol>
+                </nav>
+                
+                <h4 class="mb-4"><i class="bi bi-house-fill me-2"></i>Tax Household</h4>
                 
                 {% if tax_household %}
                     <div class="mb-4">
@@ -21,7 +29,7 @@
                         <p class="text-muted small">Created on: {{ tax_household.created_at|date:"F d, Y" }}</p>
                     </div>
                     
-                    <h4 class="mb-3">Household Members</h4>
+                    <h4 class="mb-3 mt-5"><i class="bi bi-person-fill me-2"></i>Household Members</h4>
                     
                     {% if household_members %}
                         <div class="table-responsive">
@@ -57,9 +65,16 @@
                         </div>
                     {% endif %}
                     
-                    <div class="mt-3">
-                        <a href="{% url 'member_create' %}" class="btn btn-success">Add Member</a>
-                        <a href="{% url 'household_members' %}" class="btn btn-outline-primary ms-2">Manage All Members</a>
+                    <div class="mt-4">
+                        <a href="{% url 'member_create' %}" class="btn btn-success">
+                            <i class="bi bi-person-plus-fill me-1"></i> Add Member
+                        </a>
+                        <a href="{% url 'household_members' %}" class="btn btn-outline-primary ms-2">
+                            <i class="bi bi-people-fill me-1"></i> Manage All Members
+                        </a>
+                        <a href="{% url 'bank_account_list' %}" class="btn btn-outline-secondary ms-2">
+                            <i class="bi bi-bank me-1"></i> Bank Accounts
+                        </a>
                     </div>
                     
                 {% else %}

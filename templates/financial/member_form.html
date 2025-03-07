@@ -6,10 +6,20 @@
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header">
-                <h3>{% if member %}Update{% else %}Add{% endif %} Household Member</h3>
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-person-fill me-2 fs-4"></i>
+                    <h3 class="mb-0">{% if member %}Update{% else %}Add{% endif %} Household Member</h3>
+                </div>
             </div>
             <div class="card-body">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'financial_settings' %}">Family Settings</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{% if member %}Update{% else %}Add{% endif %} Member</li>
+                    </ol>
+                </nav>
                 <form method="post">
                     {% csrf_token %}
                     
@@ -53,8 +63,11 @@
                     {% endif %}
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{% url 'financial_settings' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{% url 'financial_settings' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i> Cancel
+                        </a>
                         <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-{% if member %}pencil-square{% else %}person-plus-fill{% endif %} me-1"></i>
                             {% if member %}Update{% else %}Add{% endif %} Member
                         </button>
                     </div>

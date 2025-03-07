@@ -21,10 +21,19 @@
 <div class="row">
     <div class="col-md-12">
         <div class="card">
-            <div class="card-header">
-                <h3>Manage Household Members</h3>
+            <div class="card-header bg-primary text-white d-flex align-items-center">
+                <i class="bi bi-people-fill me-2 fs-4"></i>
+                <h3 class="mb-0">Manage Household Members</h3>
             </div>
             <div class="card-body">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'financial_settings' %}">Family Settings</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Manage Members</li>
+                    </ol>
+                </nav>
+                
                 <p class="lead">Add, edit, or remove members from your household "{{ household.name }}".</p>
                 
                 <form method="post">
@@ -91,8 +100,12 @@
                     {% endfor %}
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{% url 'financial_settings' %}" class="btn btn-outline-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <a href="{% url 'financial_settings' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i> Save Changes
+                        </button>
                     </div>
                 </form>
             </div>

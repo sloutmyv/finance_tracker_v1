@@ -6,10 +6,22 @@
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header">
-                <h3>{% if update %}Update{% else %}Create{% endif %} Tax Household</h3>
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-house-fill me-2 fs-4"></i>
+                    <h3 class="mb-0">{% if update %}Update{% else %}Create{% endif %} Tax Household</h3>
+                </div>
             </div>
             <div class="card-body">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                        {% if update %}
+                        <li class="breadcrumb-item"><a href="{% url 'financial_settings' %}">Family Settings</a></li>
+                        {% endif %}
+                        <li class="breadcrumb-item active" aria-current="page">{% if update %}Update{% else %}Create{% endif %} Household</li>
+                    </ol>
+                </nav>
                 <form method="post">
                     {% csrf_token %}
                     
@@ -25,8 +37,11 @@
                     </div>
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{% if update %}{% url 'financial_settings' %}{% else %}{% url 'dashboard' %}{% endif %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i> Cancel
+                        </a>
                         <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-{% if update %}pencil-square{% else %}house-add-fill{% endif %} me-1"></i>
                             {% if update %}Update{% else %}Create{% endif %} Household
                         </button>
                     </div>

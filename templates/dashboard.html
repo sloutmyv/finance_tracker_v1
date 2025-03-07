@@ -18,9 +18,39 @@
                     <a href="{% url 'household_create' %}" class="btn btn-primary">Set Up Tax Household</a>
                 </div>
                 {% else %}
-                <p>Your financial environment is set up. You can manage your household members and bank accounts through the Financial Environment menu.</p>
-                <div class="mt-3">
-                    <a href="{% url 'financial_settings' %}" class="btn btn-outline-primary">Manage Financial Settings</a>
+                <p>Your financial environment is set up. You can manage your settings below:</p>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="bi bi-people-fill me-2"></i>Tax Household</h5>
+                                <p class="card-text">Manage your family settings and household members.</p>
+                                <div class="d-grid gap-2">
+                                    <a href="{% url 'financial_settings' %}" class="btn btn-primary">
+                                        <i class="bi bi-gear-fill me-1"></i> Family Settings
+                                    </a>
+                                    <a href="{% url 'household_members' %}" class="btn btn-outline-primary">
+                                        <i class="bi bi-person-fill me-1"></i> Manage Members
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="bi bi-bank me-2"></i>Banking</h5>
+                                <p class="card-text">Manage your bank accounts and their connections to household members.</p>
+                                <div class="d-grid">
+                                    <a href="{% url 'bank_account_list' %}" class="btn btn-primary">
+                                        <i class="bi bi-credit-card me-1"></i> Manage Bank Accounts
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
             </div>
