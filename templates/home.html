@@ -1,15 +1,16 @@
 {% extends 'base.html' %}
+{% load i18n_extras %}
 
-{% block title %}Home - Finance Tracker{% endblock %}
+{% block title %}{% translate_json "Home" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-12">
         <div class="card">
             <div class="card-body text-center">
-                <h1 class="card-title">Welcome to Finance Tracker</h1>
-                <p class="card-text">Please login to access your personal dashboard.</p>
-                <a href="{% url 'login' %}" class="btn btn-primary btn-lg mt-3">Login</a>
+                <h1 class="card-title">{% translate_json "Welcome to Finance Tracker" %}</h1>
+                <p class="card-text">{% translate_json "Please login to access your personal dashboard." %}</p>
+                <a href="{% url 'login' %}" class="btn btn-primary btn-lg mt-3">{% translate_json "Login" %}</a>
             </div>
         </div>
     </div>

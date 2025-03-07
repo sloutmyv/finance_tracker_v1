@@ -1,10 +1,11 @@
 {% load i18n %}
+{% load i18n_extras %}
 <!DOCTYPE html>
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% trans "Finance Tracker" %}{% endblock %}</title>
+    <title>{% block title %}{% translate_json "Finance Tracker" %}{% endblock %}</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -14,7 +15,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'home' %}">{% trans "Finance Tracker" %}</a>
+            <a class="navbar-brand" href="{% url 'home' %}">{% translate_json "Finance Tracker" %}</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -22,18 +23,18 @@
                 <ul class="navbar-nav me-auto">
                     {% if user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard' %}">{% trans "Dashboard" %}</a>
+                            <a class="nav-link" href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a>
                         </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="financialDropdown" role="button" data-bs-toggle="dropdown">
-                                {% trans "Financial Environment" %}
+                                {% translate_json "Financial Environment" %}
                             </a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="{% url 'financial_settings' %}">
-                                    <i class="bi bi-people-fill me-2"></i>{% trans "Family Settings" %}
+                                    <i class="bi bi-people-fill me-2"></i>{% translate_json "Family Settings" %}
                                 </a></li>
                                 <li><a class="dropdown-item" href="{% url 'bank_account_list' %}">
-                                    <i class="bi bi-bank me-2"></i>{% trans "Bank Accounts" %}
+                                    <i class="bi bi-bank me-2"></i>{% translate_json "Bank Accounts" %}
                                 </a></li>
                             </ul>
                         </li>
@@ -46,33 +47,43 @@
                                 {{ user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{% url 'password_change' %}">{% trans "Change Password" %}</a></li>
+                                <li><a class="dropdown-item" href="{% url 'password_change' %}">{% translate_json "Change Password" %}</a></li>
                                 
                                 <li><hr class="dropdown-divider"></li>
                                 
                                 <!-- Language Selection -->
                                 <li>
-                                    <span class="dropdown-header">{% trans "Language" %}</span>
+                                    <span class="dropdown-header">{% translate_json "Language" %}</span>
                                 </li>
                                 <li>
-                                    <a href="/en{{ request.get_full_path|slice:'3:' }}" class="dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}">
-                                        {% trans "English" %}
-                                    </a>
+                                    <form action="/i18n/setlang/" method="post" style="display:inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="language" value="en">
+                                        <input type="hidden" name="next" value="{{ request.path }}">
+                                        <button type="submit" class="dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}">
+                                            {% translate_json "English" %}
+                                        </button>
+                                    </form>
                                 </li>
                                 <li>
-                                    <a href="/fr{{ request.get_full_path|slice:'3:' }}" class="dropdown-item {% if LANGUAGE_CODE == 'fr' %}active{% endif %}">
-                                        {% trans "French" %}
-                                    </a>
+                                    <form action="/i18n/setlang/" method="post" style="display:inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="language" value="fr">
+                                        <input type="hidden" name="next" value="{{ request.path }}">
+                                        <button type="submit" class="dropdown-item {% if LANGUAGE_CODE == 'fr' %}active{% endif %}">
+                                            {% translate_json "French" %}
+                                        </button>
+                                    </form>
                                 </li>
                                 
                                 <li><hr class="dropdown-divider"></li>
                                 
-                                <li><a class="dropdown-item" href="{% url 'logout' %}">{% trans "Logout" %}</a></li>
+                                <li><a class="dropdown-item" href="{% url 'logout' %}">{% translate_json "Logout" %}</a></li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">{% trans "Login" %}</a>
+                            <a class="nav-link" href="{% url 'login' %}">{% translate_json "Login" %}</a>
                         </li>
                     {% endif %}
                 </ul>

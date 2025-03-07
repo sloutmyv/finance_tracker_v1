@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load i18n_extras %}
 
-{% block title %}Bank Accounts - Finance Tracker{% endblock %}
+{% block title %}{% translate_json "Bank Accounts" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -9,59 +10,59 @@
             <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
                 <div>
                     <i class="bi bi-bank me-2 fs-4"></i>
-                    <h3 class="mb-0 d-inline">Bank Accounts</h3>
+                    <h3 class="mb-0 d-inline">{% translate_json "Bank Accounts" %}</h3>
                 </div>
                 {% if has_household and has_members %}
                 <a href="{% url 'bank_account_create' %}" class="btn btn-light">
-                    <i class="bi bi-plus-circle me-1"></i> Add Account
+                    <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add Account" %}
                 </a>
                 {% endif %}
             </div>
             <div class="card-body">
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Bank Accounts</li>
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{% translate_json "Bank Accounts" %}</li>
                     </ol>
                 </nav>
                 
                 {% if not has_household %}
                     <div class="alert alert-warning">
-                        <h5 class="alert-heading">You need to create a tax household first</h5>
-                        <p>Before adding bank accounts, you need to set up your tax household.</p>
+                        <h5 class="alert-heading">{% translate_json "You need to create a tax household first" %}</h5>
+                        <p>{% translate_json "Before adding bank accounts, you need to set up your tax household." %}</p>
                         <hr>
                         <div class="d-grid gap-2 d-md-flex">
                             <a href="{% url 'household_create' %}" class="btn btn-primary">
-                                <i class="bi bi-house-add-fill me-1"></i> Create Tax Household
+                                <i class="bi bi-house-add-fill me-1"></i> {% translate_json "Create Tax Household" %}
                             </a>
                         </div>
                     </div>
                 {% elif not has_members %}
                     <div class="alert alert-warning">
-                        <h5 class="alert-heading">You need to add household members first</h5>
-                        <p>Before adding bank accounts, you need to add members to your tax household.</p>
+                        <h5 class="alert-heading">{% translate_json "You need to add household members first" %}</h5>
+                        <p>{% translate_json "Before adding bank accounts, you need to add members to your tax household." %}</p>
                         <hr>
                         <div class="d-grid gap-2 d-md-flex">
                             <a href="{% url 'member_create' %}" class="btn btn-primary">
-                                <i class="bi bi-person-plus-fill me-1"></i> Add Household Member
+                                <i class="bi bi-person-plus-fill me-1"></i> {% translate_json "Add Household Member" %}
                             </a>
                         </div>
                     </div>
                 {% else %}
-                    <p class="lead">Manage bank accounts linked to your household members.</p>
+                    <p class="lead">{% translate_json "Manage bank accounts linked to your household members." %}</p>
                     
                     {% if bank_accounts %}
                         <div class="table-responsive">
                             <table class="table table-striped">
                                 <thead>
                                     <tr>
-                                        <th>Account</th>
-                                        <th>Bank</th>
-                                        <th>Type</th>
-                                        <th>Currency</th>
-                                        <th>Created</th>
-                                        <th>Owners</th>
-                                        <th>Actions</th>
+                                        <th>{% translate_json "Account" %}</th>
+                                        <th>{% translate_json "Bank" %}</th>
+                                        <th>{% translate_json "Type" %}</th>
+                                        <th>{% translate_json "Currency" %}</th>
+                                        <th>{% translate_json "Created" %}</th>
+                                        <th>{% translate_json "Owners" %}</th>
+                                        <th>{% translate_json "Actions" %}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -78,7 +79,7 @@
                                                     {{ account.account_type.short_designation }}
                                                 </span>
                                             {% else %}
-                                                <span class="text-muted">Not set</span>
+                                                <span class="text-muted">{% translate_json "Not set" %}</span>
                                             {% endif %}
                                         </td>
                                         <td>{{ account.currency }}</td>
@@ -89,12 +90,12 @@
                                                     {{ member.trigram }}
                                                 </span>
                                             {% empty %}
-                                                <span class="text-muted">No owners</span>
+                                                <span class="text-muted">{% translate_json "No owners" %}</span>
                                             {% endfor %}
                                         </td>
                                         <td>
                                             <a href="{% url 'bank_account_update' account.pk %}" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-pencil-fill me-1"></i> Edit
+                                                <i class="bi bi-pencil-fill me-1"></i> {% translate_json "Edit" %}
                                             </a>
                                         </td>
                                     </tr>
@@ -104,7 +105,7 @@
                         </div>
                     {% else %}
                         <div class="alert alert-info">
-                            <p>You haven't added any bank accounts yet. Click the button above to add your first account.</p>
+                            <p>{% translate_json "You haven't added any bank accounts yet. Click the button above to add your first account." %}</p>
                         </div>
                     {% endif %}
                 {% endif %}

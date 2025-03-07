@@ -1,29 +1,30 @@
 {% extends 'base.html' %}
 {% load i18n %}
+{% load i18n_extras %}
 
-{% block title %}{% trans "Dashboard" %} - {% trans "Finance Tracker" %}{% endblock %}
+{% block title %}{% translate_json "Dashboard" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-12">
         <div class="card">
             <div class="card-body">
-                <h1 class="card-title">{% trans "Hello" %} {{ username }}!</h1>
-                <p class="card-text">{% trans "Welcome to your personal Finance Tracker dashboard." %}</p>
+                <h1 class="card-title">{% translate_json "Hello" %} {{ username }}!</h1>
+                <p class="card-text">{% translate_json "Welcome to your personal Finance Tracker dashboard." %}</p>
                 
                 <div class="card mb-4">
                     <div class="card-header {% if setup_complete %}bg-success{% else %}bg-primary{% endif %} text-white">
                         <h5 class="mb-0">
                             <i class="bi bi-{% if setup_complete %}check-circle-fill{% else %}gear-fill{% endif %} me-2"></i>
-                            {% trans "Financial Environment Setup" %}
+                            {% translate_json "Financial Environment Setup" %}
                         </h5>
                     </div>
                     <div class="card-body">
                         <p class="lead">
                             {% if setup_complete %}
-                                {% trans "Your financial environment is fully set up! You can now start tracking your finances." %}
+                                {% translate_json "Your financial environment is fully set up! You can now start tracking your finances." %}
                             {% else %}
-                                {% trans "Complete the following steps to set up your financial environment:" %}
+                                {% translate_json "Complete the following steps to set up your financial environment:" %}
                             {% endif %}
                         </p>
                         
@@ -39,14 +40,14 @@
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">{% trans "Create Tax Household" %}</h5>
+                                        <h5 class="mb-1">{% translate_json "Create Tax Household" %}</h5>
                                         {% if not has_household %}
                                             <a href="{% url 'household_create' %}" class="btn btn-primary btn-sm">
-                                                {% trans "Create Now" %}
+                                                {% translate_json "Create Now" %}
                                             </a>
                                         {% endif %}
                                     </div>
-                                    <p class="mb-1">{% trans "Set up your tax household with a name." %}</p>
+                                    <p class="mb-1">{% translate_json "Set up your tax household with a name." %}</p>
                                 </div>
                             </div>
                             
@@ -61,14 +62,14 @@
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">{% trans "Add Family Members" %}</h5>
+                                        <h5 class="mb-1">{% translate_json "Add Family Members" %}</h5>
                                         {% if has_household and not has_members %}
                                             <a href="{% url 'member_create' %}" class="btn btn-primary btn-sm">
-                                                {% trans "Add Member" %}
+                                                {% translate_json "Add Member" %}
                                             </a>
                                         {% endif %}
                                     </div>
-                                    <p class="mb-1">{% trans "Add members to your tax household." %}</p>
+                                    <p class="mb-1">{% translate_json "Add members to your tax household." %}</p>
                                 </div>
                             </div>
                             
@@ -83,14 +84,14 @@
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">{% trans "Create Bank Accounts" %}</h5>
+                                        <h5 class="mb-1">{% translate_json "Create Bank Accounts" %}</h5>
                                         {% if has_members and not has_bank_accounts %}
                                             <a href="{% url 'bank_account_create' %}" class="btn btn-primary btn-sm">
-                                                {% trans "Add Account" %}
+                                                {% translate_json "Add Account" %}
                                             </a>
                                         {% endif %}
                                     </div>
-                                    <p class="mb-1">{% trans "Set up bank accounts linked to household members." %}</p>
+                                    <p class="mb-1">{% translate_json "Set up bank accounts linked to household members." %}</p>
                                 </div>
                             </div>
                         </div>
@@ -98,32 +99,32 @@
                         {% if setup_complete %}
                             <div class="alert alert-success">
                                 <i class="bi bi-check-circle-fill me-2"></i>
-                                <strong>{% trans "All set!" %}</strong> {% trans "Your financial environment is complete. You can now track your financial transactions." %}
+                                <strong>{% translate_json "All set!" %}</strong> {% translate_json "Your financial environment is complete. You can now track your financial transactions." %}
                             </div>
                         {% else %}
                             <div class="alert alert-warning">
                                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                <strong>{% trans "Setup required:" %}</strong> {% trans "You must complete all steps above before you can start tracking financial transactions." %}
+                                <strong>{% translate_json "Setup required:" %}</strong> {% translate_json "You must complete all steps above before you can start tracking financial transactions." %}
                             </div>
                         {% endif %}
                     </div>
                 </div>
                 
                 {% if has_household %}
-                <h4 class="mt-4 mb-3">{% trans "Manage Your Financial Environment" %}</h4>
+                <h4 class="mt-4 mb-3">{% translate_json "Manage Your Financial Environment" %}</h4>
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <div class="card h-100">
                             <div class="card-body d-flex flex-column">
                                 <div>
-                                    <h5 class="card-title"><i class="bi bi-people-fill me-2"></i>Tax Household</h5>
-                                    <p class="card-text">Manage your family settings and household members.</p>
+                                    <h5 class="card-title"><i class="bi bi-people-fill me-2"></i>{% translate_json "Tax Household" %}</h5>
+                                    <p class="card-text">{% translate_json "Manage your family settings and household members." %}</p>
                                 </div>
                                 <div class="mt-auto pt-3">
                                     <div class="d-grid">
                                         <a href="{% url 'financial_settings' %}" class="btn btn-primary">
-                                            <i class="bi bi-gear-fill me-1"></i> Family Settings
+                                            <i class="bi bi-gear-fill me-1"></i> {% translate_json "Family Settings" %}
                                         </a>
                                     </div>
                                 </div>
@@ -135,13 +136,13 @@
                         <div class="card h-100">
                             <div class="card-body d-flex flex-column">
                                 <div>
-                                    <h5 class="card-title"><i class="bi bi-bank me-2"></i>Banking</h5>
-                                    <p class="card-text">Manage your bank accounts and their connections to household members.</p>
+                                    <h5 class="card-title"><i class="bi bi-bank me-2"></i>{% translate_json "Banking" %}</h5>
+                                    <p class="card-text">{% translate_json "Manage your bank accounts and their connections to household members." %}</p>
                                 </div>
                                 <div class="mt-auto pt-3">
                                     <div class="d-grid">
                                         <a href="{% url 'bank_account_list' %}" class="btn btn-primary">
-                                            <i class="bi bi-credit-card me-1"></i> Manage Bank Accounts
+                                            <i class="bi bi-credit-card me-1"></i> {% translate_json "Manage Bank Accounts" %}
                                         </a>
                                     </div>
                                 </div>

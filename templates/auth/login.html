@@ -1,18 +1,19 @@
 {% extends 'base.html' %}
+{% load i18n_extras %}
 
-{% block title %}Login - Finance Tracker{% endblock %}
+{% block title %}{% translate_json "Login" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h3 class="text-center">Login</h3>
+                <h3 class="text-center">{% translate_json "Login" %}</h3>
             </div>
             <div class="card-body">
                 {% if form.errors %}
                 <div class="alert alert-danger">
-                    Your username and password didn't match. Please try again.
+                    {% translate_json "Your username and password didn't match. Please try again." %}
                 </div>
                 {% endif %}
                 
@@ -27,20 +28,20 @@
                 <form method="post" action="{% url 'login' %}">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="id_username" class="form-label">Username:</label>
+                        <label for="id_username" class="form-label">{% translate_json "Username:" %}</label>
                         <input type="text" name="username" class="form-control" id="id_username" required>
                     </div>
                     <div class="mb-3">
-                        <label for="id_password" class="form-label">Password:</label>
+                        <label for="id_password" class="form-label">{% translate_json "Password:" %}</label>
                         <input type="password" name="password" class="form-control" id="id_password" required>
                     </div>
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Login</button>
+                        <button type="submit" class="btn btn-primary">{% translate_json "Login" %}</button>
                     </div>
                     <input type="hidden" name="next" value="{{ next }}">
                 </form>
                 <div class="text-center mt-3">
-                    <p>Don't have an account? Contact your administrator.</p>
+                    <p>{% translate_json "Don't have an account? Contact your administrator." %}</p>
                 </div>
             </div>
         </div>

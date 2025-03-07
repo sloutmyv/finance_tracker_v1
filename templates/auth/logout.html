@@ -1,19 +1,20 @@
 {% extends 'base.html' %}
+{% load i18n_extras %}
 
-{% block title %}Logged Out - Finance Tracker{% endblock %}
+{% block title %}{% translate_json "Logged Out" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h3 class="text-center">Logged Out</h3>
+                <h3 class="text-center">{% translate_json "Logged Out" %}</h3>
             </div>
             <div class="card-body text-center">
                 <div class="alert alert-success">
-                    <p>You have been successfully logged out.</p>
+                    <p>{% translate_json "You have been successfully logged out." %}</p>
                 </div>
-                <a href="{% url 'login' %}" class="btn btn-primary">Log In Again</a>
+                <a href="{% url 'login' %}" class="btn btn-primary">{% translate_json "Log In Again" %}</a>
             </div>
         </div>
     </div>
