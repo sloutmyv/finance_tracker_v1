@@ -2,7 +2,22 @@
 
 A Django project with Bootstrap integration and user authentication.
 
-## Setup Instructions
+## Quick Start
+
+The easiest way to run the application is to use the provided script:
+
+```bash
+./run_dev_server.sh
+```
+
+This script will:
+1. Create a virtual environment if it doesn't exist
+2. Install all dependencies
+3. Run migrations
+4. Create a test user if it doesn't exist
+5. Start the development server
+
+## Manual Setup Instructions
 
 ### 1. Clone the repository
 ```bash
@@ -10,7 +25,7 @@ git clone <repository-url>
 cd finance_tracker_v1
 ```
 
-### 2. Create a virtual environment (recommended)
+### 2. Create and activate a virtual environment
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows use: venv\Scripts\activate
@@ -18,15 +33,18 @@ source venv/bin/activate  # On Windows use: venv\Scripts\activate
 
 ### 3. Install dependencies
 ```bash
-pip install django
+pip install -r requirements.txt
 ```
 
-### 4. Run migrations
+### 4. Set up environment variables
+The project uses python-dotenv to manage environment variables. A .env file has been created with default development settings.
+
+### 5. Run migrations
 ```bash
 python manage.py migrate
 ```
 
-### 5. Create a test user
+### 6. Create a test user
 ```bash
 python manage.py create_test_user
 ```
@@ -34,12 +52,12 @@ This creates a user with:
 - Username: testuser
 - Password: password123
 
-### 6. Run the development server
+### 7. Run the development server
 ```bash
 python manage.py runserver
 ```
 
-### 7. Access the application
+### 8. Access the application
 Open your browser and navigate to http://127.0.0.1:8000/
 
 ## User Authentication Flow
