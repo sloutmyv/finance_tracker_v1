@@ -45,9 +45,16 @@ INSTALLED_APPS = [
     'core',
 ]
 
+# Add localization apps
+INSTALLED_APPS += [
+    'django.contrib.sites',
+]
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # Add Locale middleware before Common middleware
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -68,6 +75,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.i18n',  # Add i18n context processor
+                'core.context_processors.language_context',  # Our custom context processor
             ],
         },
     },
@@ -109,13 +118,31 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'en'
 
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
-
+USE_L10N = True
 USE_TZ = True
+
+# Available languages
+LANGUAGES = [
+    ('en', 'English'),
+    ('fr', 'French'),
+]
+
+# Location of translation files
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
+
+# Site ID required for django.contrib.sites
+SITE_ID = 1
+
+# Session cookie settings - ensure language is preserved across sessions
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days
+SESSION_SAVE_EVERY_REQUEST = True
 
 
 # Static files (CSS, JavaScript, Images)

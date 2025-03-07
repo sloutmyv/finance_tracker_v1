@@ -75,6 +75,11 @@ Open your browser and navigate to http://127.0.0.1:8000/
 - Password change capability
 - Protected routes requiring authentication
 
+### Language Support
+- Multi-language support (English and French)
+- Language switching through user dropdown menu
+- Translation of all UI elements
+
 ### Financial Environment
 - Tax Household Management
   - Create and update a personal tax household
@@ -116,3 +121,4 @@ Open your browser and navigate to http://127.0.0.1:8000/
 - Select2 for enhanced multi-select functionality
 - Django's built-in authentication system
 - Python-dotenv for environment variable management
+- Internationalization (i18n) support for English and French

@@ -1,28 +1,29 @@
 {% extends 'base.html' %}
+{% load i18n %}
 
-{% block title %}Dashboard - Finance Tracker{% endblock %}
+{% block title %}{% trans "Dashboard" %} - {% trans "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-12">
         <div class="card">
             <div class="card-body">
-                <h1 class="card-title">Hello {{ username }}!</h1>
-                <p class="card-text">Welcome to your personal Finance Tracker dashboard.</p>
+                <h1 class="card-title">{% trans "Hello" %} {{ username }}!</h1>
+                <p class="card-text">{% trans "Welcome to your personal Finance Tracker dashboard." %}</p>
                 
                 <div class="card mb-4">
                     <div class="card-header {% if setup_complete %}bg-success{% else %}bg-primary{% endif %} text-white">
                         <h5 class="mb-0">
                             <i class="bi bi-{% if setup_complete %}check-circle-fill{% else %}gear-fill{% endif %} me-2"></i>
-                            Financial Environment Setup
+                            {% trans "Financial Environment Setup" %}
                         </h5>
                     </div>
                     <div class="card-body">
                         <p class="lead">
                             {% if setup_complete %}
-                                Your financial environment is fully set up! You can now start tracking your finances.
+                                {% trans "Your financial environment is fully set up! You can now start tracking your finances." %}
                             {% else %}
-                                Complete the following steps to set up your financial environment:
+                                {% trans "Complete the following steps to set up your financial environment:" %}
                             {% endif %}
                         </p>
                         
@@ -38,14 +39,14 @@
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">Create Tax Household</h5>
+                                        <h5 class="mb-1">{% trans "Create Tax Household" %}</h5>
                                         {% if not has_household %}
                                             <a href="{% url 'household_create' %}" class="btn btn-primary btn-sm">
-                                                Create Now
+                                                {% trans "Create Now" %}
                                             </a>
                                         {% endif %}
                                     </div>
-                                    <p class="mb-1">Set up your tax household with a name.</p>
+                                    <p class="mb-1">{% trans "Set up your tax household with a name." %}</p>
                                 </div>
                             </div>
                             
@@ -60,14 +61,14 @@
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">Add Family Members</h5>
+                                        <h5 class="mb-1">{% trans "Add Family Members" %}</h5>
                                         {% if has_household and not has_members %}
                                             <a href="{% url 'member_create' %}" class="btn btn-primary btn-sm">
-                                                Add Member
+                                                {% trans "Add Member" %}
                                             </a>
                                         {% endif %}
                                     </div>
-                                    <p class="mb-1">Add members to your tax household.</p>
+                                    <p class="mb-1">{% trans "Add members to your tax household." %}</p>
                                 </div>
                             </div>
                             
@@ -82,14 +83,14 @@
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">Create Bank Accounts</h5>
+                                        <h5 class="mb-1">{% trans "Create Bank Accounts" %}</h5>
                                         {% if has_members and not has_bank_accounts %}
                                             <a href="{% url 'bank_account_create' %}" class="btn btn-primary btn-sm">
-                                                Add Account
+                                                {% trans "Add Account" %}
                                             </a>
                                         {% endif %}
                                     </div>
-                                    <p class="mb-1">Set up bank accounts linked to household members.</p>
+                                    <p class="mb-1">{% trans "Set up bank accounts linked to household members." %}</p>
                                 </div>
                             </div>
                         </div>
@@ -97,19 +98,19 @@
                         {% if setup_complete %}
                             <div class="alert alert-success">
                                 <i class="bi bi-check-circle-fill me-2"></i>
-                                <strong>All set!</strong> Your financial environment is complete. You can now track your financial transactions.
+                                <strong>{% trans "All set!" %}</strong> {% trans "Your financial environment is complete. You can now track your financial transactions." %}
                             </div>
                         {% else %}
                             <div class="alert alert-warning">
                                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                <strong>Setup required:</strong> You must complete all steps above before you can start tracking financial transactions.
+                                <strong>{% trans "Setup required:" %}</strong> {% trans "You must complete all steps above before you can start tracking financial transactions." %}
                             </div>
                         {% endif %}
                     </div>
                 </div>
                 
                 {% if has_household %}
-                <h4 class="mt-4 mb-3">Manage Your Financial Environment</h4>
+                <h4 class="mt-4 mb-3">{% trans "Manage Your Financial Environment" %}</h4>
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
