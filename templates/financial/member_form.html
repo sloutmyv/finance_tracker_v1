@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load i18n_extras %}
 
-{% block title %}{% if member %}Update{% else %}Add{% endif %} Household Member - Finance Tracker{% endblock %}
+{% block title %}{% if member %}{% translate_json "Update" %}{% else %}{% translate_json "Add" %}{% endif %} {% translate_json "Household Member" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -9,15 +10,15 @@
             <div class="card-header bg-primary text-white">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-person-fill me-2 fs-4"></i>
-                    <h3 class="mb-0">{% if member %}Update{% else %}Add{% endif %} Household Member</h3>
+                    <h3 class="mb-0">{% if member %}{% translate_json "Update" %}{% else %}{% translate_json "Add" %}{% endif %} {% translate_json "Household Member" %}</h3>
                 </div>
             </div>
             <div class="card-body">
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'financial_settings' %}">Family Settings</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">{% if member %}Update{% else %}Add{% endif %} Member</li>
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'financial_settings' %}">{% translate_json "Family Settings" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{% if member %}{% translate_json "Update" %}{% else %}{% translate_json "Add" %}{% endif %} {% translate_json "Member" %}</li>
                     </ol>
                 </nav>
                 <form method="post">
@@ -25,7 +26,7 @@
                     
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label">{% translate_json "First Name" %}</label>
                             {{ form.first_name }}
                             {% if form.first_name.errors %}
                             <div class="text-danger">
@@ -34,7 +35,7 @@
                             {% endif %}
                         </div>
                         <div class="col-md-6">
-                            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label">{% translate_json "Last Name" %}</label>
                             {{ form.last_name }}
                             {% if form.last_name.errors %}
                             <div class="text-danger">
@@ -45,7 +46,7 @@
                     </div>
                     
                     <div class="mb-3 mt-3">
-                        <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">Date of Birth</label>
+                        <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">{% translate_json "Date of Birth" %}</label>
                         {{ form.date_of_birth }}
                         {% if form.date_of_birth.errors %}
                         <div class="text-danger">
@@ -56,19 +57,19 @@
                     
                     {% if member %}
                     <div class="mb-3">
-                        <label class="form-label">Trigram</label>
+                        <label class="form-label">{% translate_json "Trigram" %}</label>
                         <input type="text" value="{{ member.trigram }}" class="form-control" readonly>
-                        <div class="form-text">The trigram is automatically generated and cannot be edited.</div>
+                        <div class="form-text">{% translate_json "The trigram is automatically generated and cannot be edited." %}</div>
                     </div>
                     {% endif %}
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                         <a href="{% url 'financial_settings' %}" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle me-1"></i> Cancel
+                            <i class="bi bi-x-circle me-1"></i> {% translate_json "Cancel" %}
                         </a>
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-{% if member %}pencil-square{% else %}person-plus-fill{% endif %} me-1"></i>
-                            {% if member %}Update{% else %}Add{% endif %} Member
+                            {% if member %}{% translate_json "Update" %}{% else %}{% translate_json "Add" %}{% endif %} {% translate_json "Member" %}
                         </button>
                     </div>
                 </form>

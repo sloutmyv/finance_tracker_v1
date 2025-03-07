@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load i18n_extras %}
 
-{% block title %}Financial Settings - Finance Tracker{% endblock %}
+{% block title %}{% translate_json "Financial Settings" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -8,38 +9,38 @@
         <div class="card">
             <div class="card-header bg-primary text-white d-flex align-items-center">
                 <i class="bi bi-people-fill me-2 fs-4"></i>
-                <h3 class="mb-0">Tax Household Settings</h3>
+                <h3 class="mb-0">{% translate_json "Tax Household Settings" %}</h3>
             </div>
             <div class="card-body">
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Family Settings</li>
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{% translate_json "Family Settings" %}</li>
                     </ol>
                 </nav>
                 
-                <h4 class="mb-4"><i class="bi bi-house-fill me-2"></i>Tax Household</h4>
+                <h4 class="mb-4"><i class="bi bi-house-fill me-2"></i>{% translate_json "Tax Household" %}</h4>
                 
                 {% if tax_household %}
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center">
                             <h5>{{ tax_household.name }}</h5>
-                            <a href="{% url 'household_update' %}" class="btn btn-sm btn-primary">Edit</a>
+                            <a href="{% url 'household_update' %}" class="btn btn-sm btn-primary">{% translate_json "Edit" %}</a>
                         </div>
-                        <p class="text-muted small">Created on: {{ tax_household.created_at|date:"F d, Y" }}</p>
+                        <p class="text-muted small">{% translate_json "Created on" %}: {{ tax_household.created_at|date:"F d, Y" }}</p>
                     </div>
                     
-                    <h4 class="mb-3 mt-5"><i class="bi bi-person-fill me-2"></i>Household Members</h4>
+                    <h4 class="mb-3 mt-5"><i class="bi bi-person-fill me-2"></i>{% translate_json "Household Members" %}</h4>
                     
                     {% if household_members %}
                         <div class="table-responsive">
                             <table class="table table-striped">
                                 <thead>
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Trigram</th>
-                                        <th>Date of Birth</th>
-                                        <th>Actions</th>
+                                        <th>{% translate_json "Name" %}</th>
+                                        <th>{% translate_json "Trigram" %}</th>
+                                        <th>{% translate_json "Date of Birth" %}</th>
+                                        <th>{% translate_json "Actions" %}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -50,8 +51,8 @@
                                         <td>{{ member.date_of_birth|date:"F d, Y" }}</td>
                                         <td>
                                             <div class="btn-group">
-                                                <a href="{% url 'member_update' member.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                                <a href="{% url 'member_delete' member.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+                                                <a href="{% url 'member_update' member.pk %}" class="btn btn-sm btn-outline-primary">{% translate_json "Edit" %}</a>
+                                                <a href="{% url 'member_delete' member.pk %}" class="btn btn-sm btn-outline-danger">{% translate_json "Delete" %}</a>
                                             </div>
                                         </td>
                                     </tr>
@@ -61,23 +62,23 @@
                         </div>
                     {% else %}
                         <div class="alert alert-info">
-                            You don't have any household members yet. Add your first member below.
+                            {% translate_json "You don't have any household members yet. Add your first member below." %}
                         </div>
                     {% endif %}
                     
                     <div class="mt-4">
                         <a href="{% url 'member_create' %}" class="btn btn-success">
-                            <i class="bi bi-person-plus-fill me-1"></i> Add Member
+                            <i class="bi bi-person-plus-fill me-1"></i> {% translate_json "Add Member" %}
                         </a>
                         <a href="{% url 'household_members' %}" class="btn btn-outline-primary ms-2">
-                            <i class="bi bi-people-fill me-1"></i> Manage All Members
+                            <i class="bi bi-people-fill me-1"></i> {% translate_json "Manage All Members" %}
                         </a>
                     </div>
                     
                 {% else %}
                     <div class="alert alert-warning">
-                        <p>You haven't set up your tax household yet.</p>
-                        <a href="{% url 'household_create' %}" class="btn btn-primary mt-2">Create Tax Household</a>
+                        <p>{% translate_json "You haven't set up your tax household yet." %}</p>
+                        <a href="{% url 'household_create' %}" class="btn btn-primary mt-2">{% translate_json "Create Tax Household" %}</a>
                     </div>
                 {% endif %}
             </div>

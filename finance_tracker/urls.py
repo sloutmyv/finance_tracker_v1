@@ -23,8 +23,8 @@ from django.utils.translation import gettext_lazy as _
 urlpatterns = [
     # Special URL for language switching
     path('i18n/', include('django.conf.urls.i18n')),
-    # Django's built-in view for setting the language
-    path('set-language/', include('django.conf.urls.i18n')),
+    # Django's built-in view for setting the language with a name
+    path('set-language/', include('django.conf.urls.i18n'), name='set_language'),
 ]
 
 # Translatable URLs - wrapped in i18n_patterns

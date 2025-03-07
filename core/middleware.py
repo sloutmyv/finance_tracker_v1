@@ -1,6 +1,7 @@
 from django.utils import translation
 from django.conf import settings
 import re
+from core.translation_loader import load_json_translations, TRANSLATION_DICT
 
 class LanguageMiddleware:
     """
@@ -14,8 +15,18 @@ class LanguageMiddleware:
         
         # Compile the regex pattern once to improve performance
         self.language_pattern = re.compile(r'^/(?P<language>en|fr)/')
+        
+        # Make sure translations are loaded
+        if not TRANSLATION_DICT:
+            load_json_translations()
+            print("DEBUG Middleware: Loaded translations in middleware init")
     
     def __call__(self, request):
+        # Ensure translations are loaded
+        if not TRANSLATION_DICT:
+            load_json_translations()
+            print("DEBUG Middleware: Loaded translations in middleware call")
+            
         # Check if the URL contains a language code
         match = self.language_pattern.match(request.path_info)
         if match:
@@ -25,10 +36,12 @@ class LanguageMiddleware:
             if language in [lang[0] for lang in settings.LANGUAGES]:
                 translation.activate(language)
                 request.LANGUAGE_CODE = language
+                print(f"DEBUG Middleware: Activated language from URL: {language}")
                 
                 # Store the language preference in the session
                 if hasattr(request, 'session'):
                     request.session['django_language'] = language
+                    print(f"DEBUG Middleware: Set session language to {language}")
         
         # If no language code in URL, check session
         elif hasattr(request, 'session') and 'django_language' in request.session:
@@ -36,15 +49,19 @@ class LanguageMiddleware:
             if language in [lang[0] for lang in settings.LANGUAGES]:
                 translation.activate(language)
                 request.LANGUAGE_CODE = language
+                print(f"DEBUG Middleware: Activated language from session: {language}")
         
         # Get the response
         response = self.get_response(request)
         
         # Set the language cookie
         if hasattr(request, 'LANGUAGE_CODE'):
+            current_lang = getattr(request, 'LANGUAGE_CODE', settings.LANGUAGE_CODE)
+            print(f"DEBUG Middleware: Setting language cookie to {current_lang}")
+            
             response.set_cookie(
                 settings.LANGUAGE_COOKIE_NAME,
-                request.LANGUAGE_CODE,
+                current_lang,
                 max_age=settings.SESSION_COOKIE_AGE,
                 path=settings.LANGUAGE_COOKIE_PATH,
                 domain=settings.LANGUAGE_COOKIE_DOMAIN,

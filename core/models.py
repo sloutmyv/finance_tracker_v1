@@ -1,11 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 class TaxHousehold(models.Model):
     """Model representing a tax household for a user"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='tax_household')
-    name = models.CharField(max_length=100, help_text="Name of the tax household (e.g. 'Smith Family')")
+    name = models.CharField(max_length=100, help_text=_("Name of the tax household (e.g. 'Smith Family')"))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -47,29 +48,29 @@ class AccountType(models.Model):
 class BankAccount(models.Model):
     """Model representing a bank account that can be linked to household members"""
     CURRENCY_CHOICES = [
-        ('EUR', 'Euro (€)'),
-        ('USD', 'US Dollar ($)'),
-        ('GBP', 'British Pound (£)'),
-        ('JPY', 'Japanese Yen (¥)'),
-        ('CHF', 'Swiss Franc (Fr)'),
-        ('AUD', 'Australian Dollar (A$)'),
-        ('CAD', 'Canadian Dollar (C$)'),
-        ('XPF', 'CFP Franc (₣)'),
-        ('CNY', 'Chinese Yuan (¥)'),
+        ('EUR', _('Euro (€)')),
+        ('USD', _('US Dollar ($)')),
+        ('GBP', _('British Pound (£)')),
+        ('JPY', _('Japanese Yen (¥)')),
+        ('CHF', _('Swiss Franc (Fr)')),
+        ('AUD', _('Australian Dollar (A$)')),
+        ('CAD', _('Canadian Dollar (C$)')),
+        ('XPF', _('CFP Franc (₣)')),
+        ('CNY', _('Chinese Yuan (¥)')),
     ]
     
-    name = models.CharField(max_length=100, help_text="Name of the account")
-    bank_name = models.CharField(max_length=100, help_text="Name of the bank", default="")
+    name = models.CharField(max_length=100, help_text=_("Name of the account"))
+    bank_name = models.CharField(max_length=100, help_text=_("Name of the bank"), default="")
     account_type = models.ForeignKey(AccountType, on_delete=models.PROTECT, related_name='accounts', null=True)
     members = models.ManyToManyField(HouseholdMember, related_name='bank_accounts')
-    reference = models.CharField(max_length=100, blank=True, help_text="Auto-generated reference code")
+    reference = models.CharField(max_length=100, blank=True, help_text=_("Auto-generated reference code"))
     currency = models.CharField(
         max_length=3,
         choices=CURRENCY_CHOICES,
         default='EUR',
-        help_text="Three-letter currency code"
+        help_text=_("Three-letter currency code")
     )
-    timestamp = models.DateTimeField(default=timezone.now, help_text="Account creation date and time")
+    timestamp = models.DateTimeField(default=timezone.now, help_text=_("Account creation date and time"))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

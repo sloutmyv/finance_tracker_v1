@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load i18n_extras %}
 
-{% block title %}{% if account %}Update{% else %}Add{% endif %} Bank Account - Finance Tracker{% endblock %}
+{% block title %}{% if account %}{% translate_json "Update" %}{% else %}{% translate_json "Add" %}{% endif %} {% translate_json "Bank Account" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -41,15 +42,15 @@
             <div class="card-header bg-primary text-white">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-bank me-2 fs-4"></i>
-                    <h3 class="mb-0">{% if account %}Update{% else %}Add{% endif %} Bank Account</h3>
+                    <h3 class="mb-0">{% if account %}{% translate_json "Update" %}{% else %}{% translate_json "Add" %}{% endif %} {% translate_json "Bank Account" %}</h3>
                 </div>
             </div>
             <div class="card-body">
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'bank_account_list' %}">Bank Accounts</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">{% if account %}Update{% else %}Add{% endif %} Account</li>
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'bank_account_list' %}">{% translate_json "Bank Accounts" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{% if account %}{% translate_json "Update" %}{% else %}{% translate_json "Add" %}{% endif %} {% translate_json "Account" %}</li>
                     </ol>
                 </nav>
                 <form method="post">
@@ -58,26 +59,26 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="{{ form.name.id_for_label }}" class="form-label">Account Name</label>
+                                <label for="{{ form.name.id_for_label }}" class="form-label">{% translate_json "Account Name" %}</label>
                                 {{ form.name }}
                                 {% if form.name.errors %}
                                 <div class="text-danger">
                                     {{ form.name.errors }}
                                 </div>
                                 {% endif %}
-                                <div class="form-text">{{ form.name.help_text }}</div>
+                                <div class="form-text">{% translate_json "A descriptive name for the account, e.g., \"Joint Checking\" or \"Savings\"" %}</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="{{ form.bank_name.id_for_label }}" class="form-label">Bank Name</label>
+                                <label for="{{ form.bank_name.id_for_label }}" class="form-label">{% translate_json "Bank Name" %}</label>
                                 {{ form.bank_name }}
                                 {% if form.bank_name.errors %}
                                 <div class="text-danger">
                                     {{ form.bank_name.errors }}
                                 </div>
                                 {% endif %}
-                                <div class="form-text">{{ form.bank_name.help_text }}</div>
+                                <div class="form-text">{% translate_json "The name of the bank or financial institution" %}</div>
                             </div>
                         </div>
                     </div>
@@ -85,45 +86,45 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="{{ form.account_type.id_for_label }}" class="form-label">Account Type</label>
+                                <label for="{{ form.account_type.id_for_label }}" class="form-label">{% translate_json "Account Type" %}</label>
                                 {{ form.account_type }}
                                 {% if form.account_type.errors %}
                                 <div class="text-danger">
                                     {{ form.account_type.errors }}
                                 </div>
                                 {% endif %}
-                                <div class="form-text">Select the type of account</div>
+                                <div class="form-text">{% translate_json "Select the type of account" %}</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="{{ form.currency.id_for_label }}" class="form-label">Currency</label>
+                                <label for="{{ form.currency.id_for_label }}" class="form-label">{% translate_json "Currency" %}</label>
                                 {{ form.currency }}
                                 {% if form.currency.errors %}
                                 <div class="text-danger">
                                     {{ form.currency.errors }}
                                 </div>
                                 {% endif %}
-                                <div class="form-text">{{ form.currency.help_text }}</div>
+                                <div class="form-text">{% translate_json "The currency used for this account" %}</div>
                             </div>
                         </div>
                     </div>
                     
                     {% if account and account.reference %}
                     <div class="mb-4">
-                        <label class="form-label">Reference Code</label>
+                        <label class="form-label">{% translate_json "Reference Code" %}</label>
                         <input type="text" value="{{ account.reference }}" class="form-control" readonly>
-                        <div class="form-text">Auto-generated reference code for this account</div>
+                        <div class="form-text">{% translate_json "Auto-generated reference code for this account" %}</div>
                     </div>
                     {% endif %}
                     
                     <div class="card mb-4">
                         <div class="card-header bg-light">
-                            <label class="mb-0">Account Owners</label>
+                            <label class="mb-0">{% translate_json "Account Owners" %}</label>
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <p class="small text-muted">{{ form.members.help_text }}</p>
+                                <p class="small text-muted">{% translate_json "Select the members who own this account" %}</p>
                                 <div class="members-checkbox-list">
                                     {{ form.members }}
                                 </div>
@@ -138,11 +139,11 @@
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                         <a href="{% url 'bank_account_list' %}" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle me-1"></i> Cancel
+                            <i class="bi bi-x-circle me-1"></i> {% translate_json "Cancel" %}
                         </a>
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-{% if account %}pencil-square{% else %}plus-circle{% endif %} me-1"></i>
-                            {% if account %}Update{% else %}Add{% endif %} Account
+                            {% if account %}{% translate_json "Update" %}{% else %}{% translate_json "Add" %}{% endif %} {% translate_json "Account" %}
                         </button>
                     </div>
                 </form>

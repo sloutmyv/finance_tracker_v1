@@ -1,5 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
+from django.utils.translation import gettext_lazy as _
 from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType
 
 class DateInput(forms.DateInput):
@@ -37,7 +38,7 @@ class BankAccountForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Check if there are any account types
         if not AccountType.objects.exists():
-            self.fields['account_type'].help_text = (
+            self.fields['account_type'].help_text = _(
                 'No account types are available. Please contact the administrator to create account types.'
             )
     
@@ -52,8 +53,8 @@ class BankAccountForm(forms.ModelForm):
             'members': forms.CheckboxSelectMultiple(),
         }
         help_texts = {
-            'name': 'A descriptive name for the account, e.g., "Joint Checking" or "Savings"',
-            'bank_name': 'The name of the bank or financial institution',
-            'currency': 'The currency used for this account',
-            'members': 'Select all family members who have access to this account',
+            'name': _('A descriptive name for the account, e.g., "Joint Checking" or "Savings"'),
+            'bank_name': _('The name of the bank or financial institution'),
+            'currency': _('The currency used for this account'),
+            'members': _('Select all family members who have access to this account'),
         }
