@@ -63,9 +63,10 @@ Open your browser and navigate to http://127.0.0.1:8000/
 ## User Authentication Flow
 
 1. When a user visits the site, they are presented with a login page
-2. After successful login, they are redirected to their personal dashboard
+2. After successful login, they are redirected to their personal dashboard with a welcome message
 3. The navigation menu displays options to access the dashboard, change password, or log out
-4. Protected routes require login (redirects to login page if not authenticated)
+4. When logging out, the user is redirected to the login page with a logout confirmation message
+5. Protected routes require login (redirects to login page if not authenticated)
 
 ## Project Structure
 
