@@ -28,19 +28,9 @@
                                 Financial Environment
                             </a>
                             <ul class="dropdown-menu">
-                                <li>
-                                    <span class="dropdown-header">Tax Household</span>
-                                </li>
                                 <li><a class="dropdown-item" href="{% url 'financial_settings' %}">
                                     <i class="bi bi-people-fill me-2"></i>Family Settings
                                 </a></li>
-                                <li><a class="dropdown-item" href="{% url 'household_members' %}">
-                                    <i class="bi bi-person-fill me-2"></i>Manage Members
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <span class="dropdown-header">Banking</span>
-                                </li>
                                 <li><a class="dropdown-item" href="{% url 'bank_account_list' %}">
                                     <i class="bi bi-bank me-2"></i>Bank Accounts
                                 </a></li>
@@ -52,12 +42,10 @@
                     {% if user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                                Welcome, {{ user.username }}
+                                {{ user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard</a></li>
                                 <li><a class="dropdown-item" href="{% url 'password_change' %}">Change Password</a></li>
-                                <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
                             </ul>
                         </li>

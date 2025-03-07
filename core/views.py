@@ -6,7 +6,7 @@ from django.urls import reverse_lazy, reverse
 from django.http import HttpResponseRedirect
 from django.db import transaction
 
-from .models import TaxHousehold, HouseholdMember, BankAccount
+from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType
 from .forms import TaxHouseholdForm, HouseholdMemberForm, HouseholdMemberFormSet, BankAccountForm
 
 def home(request):
@@ -21,12 +21,39 @@ def dashboard(request):
         messages.success(request, f"Welcome back, {request.user.username}!")
         request.session['login_success'] = True
     
-    # Check if user has a tax household
-    has_household = hasattr(request.user, 'tax_household')
+    # Initialize setup status variables
+    has_household = False
+    has_members = False
+    has_bank_accounts = False
+    setup_complete = False
+    
+    try:
+        # Check if user has a tax household
+        household = request.user.tax_household
+        has_household = True
+        
+        # Check if the household has members
+        members = household.members.all()
+        has_members = members.exists()
+        
+        # Check if there are bank accounts linked to any household members
+        if has_members:
+            bank_accounts = BankAccount.objects.filter(members__in=members).distinct()
+            has_bank_accounts = bank_accounts.exists()
+        
+        # Financial environment is complete when all steps are done
+        setup_complete = has_household and has_members and has_bank_accounts
+    
+    except TaxHousehold.DoesNotExist:
+        # User doesn't have a tax household yet
+        pass
     
     return render(request, 'dashboard.html', {
         'username': request.user.username,
         'has_household': has_household,
+        'has_members': has_members,
+        'has_bank_accounts': has_bank_accounts,
+        'setup_complete': setup_complete,
     })
 
 def logout_view(request):
@@ -186,15 +213,26 @@ def bank_account_list(request):
         household = request.user.tax_household
         # Get all members of the household
         members = household.members.all()
+        
+        # Check if there are any members in the household
+        has_members = members.exists()
+        
         # Get all bank accounts linked to any of these members
-        bank_accounts = BankAccount.objects.filter(members__in=members).distinct()
+        bank_accounts = BankAccount.objects.filter(members__in=members).distinct() if has_members else []
+        
+        return render(request, 'financial/bank_account_list.html', {
+            'bank_accounts': bank_accounts,
+            'has_household': True,
+            'has_members': has_members
+        })
+        
     except TaxHousehold.DoesNotExist:
-        messages.error(request, "You need to create a tax household first.")
-        return redirect('household_create')
-    
-    return render(request, 'financial/bank_account_list.html', {
-        'bank_accounts': bank_accounts
-    })
+        # Instead of redirecting, render the bank account page with a notification
+        return render(request, 'financial/bank_account_list.html', {
+            'bank_accounts': [],
+            'has_household': False,
+            'has_members': False
+        })
 
 @login_required
 def bank_account_create(request):
@@ -207,6 +245,17 @@ def bank_account_create(request):
     except TaxHousehold.DoesNotExist:
         messages.error(request, "You need to create a tax household first.")
         return redirect('household_create')
+    
+    # Ensure default account types are created
+    if AccountType.objects.count() == 0:
+        try:
+            # Create default account types if none exist
+            from django.core.management import call_command
+            call_command('create_default_account_types')
+            messages.info(request, "Default account types have been created.")
+        except Exception as e:
+            messages.error(request, f"Error creating default account types: {str(e)}")
+            return redirect('bank_account_list')
     
     if request.method == 'POST':
         form = BankAccountForm(request.POST)
@@ -240,14 +289,25 @@ def bank_account_update(request, pk):
         messages.error(request, "You need to create a tax household first.")
         return redirect('household_create')
     
+    # Ensure default account types are created
+    if AccountType.objects.count() == 0:
+        try:
+            # Create default account types if none exist
+            from django.core.management import call_command
+            call_command('create_default_account_types')
+            messages.info(request, "Default account types have been created.")
+        except Exception as e:
+            messages.error(request, f"Error creating default account types: {str(e)}")
+            return redirect('bank_account_list')
+    
     if request.method == 'POST':
         form = BankAccountForm(request.POST, instance=account)
         # Limit member choices to user's household members
         form.fields['members'].queryset = household.members.all()
         
         if form.is_valid():
-            form.save()
-            messages.success(request, f"Bank account '{account.name}' updated successfully!")
+            updated_account = form.save()
+            messages.success(request, f"Bank account '{updated_account.name}' updated successfully!")
             return redirect('bank_account_list')
     else:
         form = BankAccountForm(instance=account)

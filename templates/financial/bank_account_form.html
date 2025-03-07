@@ -4,11 +4,34 @@
 
 {% block extra_css %}
 <style>
-    .select2-container {
-        width: 100% !important;
+    .members-checkbox-list ul {
+        list-style-type: none;
+        padding-left: 0;
+        margin-bottom: 0;
+    }
+    
+    .members-checkbox-list li {
+        margin-bottom: 10px;
+        padding: 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+    
+    .members-checkbox-list li:hover {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+    
+    .members-checkbox-list input[type="checkbox"] {
+        margin-right: 10px;
+    }
+    
+    .members-checkbox-list label {
+        width: 100%;
+        cursor: pointer;
+        font-weight: normal;
+        margin-bottom: 0;
     }
 </style>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 {% endblock %}
 
 {% block content %}
@@ -32,37 +55,85 @@
                 <form method="post">
                     {% csrf_token %}
                     
-                    <div class="mb-3">
-                        <label for="{{ form.name.id_for_label }}" class="form-label">Account Name</label>
-                        {{ form.name }}
-                        {% if form.name.errors %}
-                        <div class="text-danger">
-                            {{ form.name.errors }}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">Account Name</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                <div class="text-danger">
+                                    {{ form.name.errors }}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">{{ form.name.help_text }}</div>
+                            </div>
                         </div>
-                        {% endif %}
-                        <div class="form-text">Enter a descriptive name for this account (e.g. "Joint Checking")</div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.bank_name.id_for_label }}" class="form-label">Bank Name</label>
+                                {{ form.bank_name }}
+                                {% if form.bank_name.errors %}
+                                <div class="text-danger">
+                                    {{ form.bank_name.errors }}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">{{ form.bank_name.help_text }}</div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="{{ form.account_number.id_for_label }}" class="form-label">Account Number (Optional)</label>
-                        {{ form.account_number }}
-                        {% if form.account_number.errors %}
-                        <div class="text-danger">
-                            {{ form.account_number.errors }}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.account_type.id_for_label }}" class="form-label">Account Type</label>
+                                {{ form.account_type }}
+                                {% if form.account_type.errors %}
+                                <div class="text-danger">
+                                    {{ form.account_type.errors }}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">Select the type of account</div>
+                            </div>
                         </div>
-                        {% endif %}
-                        <div class="form-text">You can leave this blank if you prefer not to store the account number</div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.currency.id_for_label }}" class="form-label">Currency</label>
+                                {{ form.currency }}
+                                {% if form.currency.errors %}
+                                <div class="text-danger">
+                                    {{ form.currency.errors }}
+                                </div>
+                                {% endif %}
+                                <div class="form-text">{{ form.currency.help_text }}</div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="{{ form.members.id_for_label }}" class="form-label">Household Members</label>
-                        {{ form.members }}
-                        {% if form.members.errors %}
-                        <div class="text-danger">
-                            {{ form.members.errors }}
+                    {% if account and account.reference %}
+                    <div class="mb-4">
+                        <label class="form-label">Reference Code</label>
+                        <input type="text" value="{{ account.reference }}" class="form-control" readonly>
+                        <div class="form-text">Auto-generated reference code for this account</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <label class="mb-0">Account Owners</label>
                         </div>
-                        {% endif %}
-                        <div class="form-text">Select which household members have access to this account</div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <p class="small text-muted">{{ form.members.help_text }}</p>
+                                <div class="members-checkbox-list">
+                                    {{ form.members }}
+                                </div>
+                                {% if form.members.errors %}
+                                <div class="text-danger mt-2">
+                                    {{ form.members.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
@@ -82,13 +153,19 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
-        $('#{{ form.members.id_for_label }}').select2({
-            placeholder: 'Select members',
-            width: '100%'
+        // Add some basic interactivity to the checkboxes
+        $('.members-checkbox-list input[type="checkbox"]').change(function() {
+            if ($(this).is(':checked')) {
+                $(this).closest('li').addClass('bg-light');
+            } else {
+                $(this).closest('li').removeClass('bg-light');
+            }
         });
+        
+        // Pre-check if already checked
+        $('.members-checkbox-list input[type="checkbox"]:checked').closest('li').addClass('bg-light');
     });
 </script>
 {% endblock %}

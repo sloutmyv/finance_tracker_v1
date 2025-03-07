@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import TaxHousehold, HouseholdMember, BankAccount
+from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType
 
 class DateInput(forms.DateInput):
     input_type = 'date'
@@ -33,11 +33,27 @@ HouseholdMemberFormSet = inlineformset_factory(
 )
 
 class BankAccountForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Check if there are any account types
+        if not AccountType.objects.exists():
+            self.fields['account_type'].help_text = (
+                'No account types are available. Please contact the administrator to create account types.'
+            )
+    
     class Meta:
         model = BankAccount
-        fields = ['name', 'account_number', 'members']
+        fields = ['name', 'bank_name', 'account_type', 'currency', 'members']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'account_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'members': forms.SelectMultiple(attrs={'class': 'form-control'}),
+            'bank_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'account_type': forms.Select(attrs={'class': 'form-control'}),
+            'currency': forms.Select(attrs={'class': 'form-control'}),
+            'members': forms.CheckboxSelectMultiple(),
+        }
+        help_texts = {
+            'name': 'A descriptive name for the account, e.g., "Joint Checking" or "Savings"',
+            'bank_name': 'The name of the bank or financial institution',
+            'currency': 'The currency used for this account',
+            'members': 'Select all family members who have access to this account',
         }
