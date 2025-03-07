@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Financial Settings - Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3>Financial Environment Settings</h3>
+            </div>
+            <div class="card-body">
+                <h4 class="mb-4">Tax Household</h4>
+                
+                {% if tax_household %}
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5>{{ tax_household.name }}</h5>
+                            <a href="{% url 'household_update' %}" class="btn btn-sm btn-primary">Edit</a>
+                        </div>
+                        <p class="text-muted small">Created on: {{ tax_household.created_at|date:"F d, Y" }}</p>
+                    </div>
+                    
+                    <h4 class="mb-3">Household Members</h4>
+                    
+                    {% if household_members %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Trigram</th>
+                                        <th>Date of Birth</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for member in household_members %}
+                                    <tr>
+                                        <td>{{ member.first_name }} {{ member.last_name }}</td>
+                                        <td>{{ member.trigram }}</td>
+                                        <td>{{ member.date_of_birth|date:"F d, Y" }}</td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <a href="{% url 'member_update' member.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                                <a href="{% url 'member_delete' member.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            You don't have any household members yet. Add your first member below.
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mt-3">
+                        <a href="{% url 'member_create' %}" class="btn btn-success">Add Member</a>
+                        <a href="{% url 'household_members' %}" class="btn btn-outline-primary ms-2">Manage All Members</a>
+                    </div>
+                    
+                {% else %}
+                    <div class="alert alert-warning">
+                        <p>You haven't set up your tax household yet.</p>
+                        <a href="{% url 'household_create' %}" class="btn btn-primary mt-2">Create Tax Household</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

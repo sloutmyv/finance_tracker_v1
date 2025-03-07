@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Household Members - Finance Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+    .member-form {
+        padding: 15px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+    }
+    .member-form .delete-row {
+        margin-top: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3>Manage Household Members</h3>
+            </div>
+            <div class="card-body">
+                <p class="lead">Add, edit, or remove members from your household "{{ household.name }}".</p>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    {{ formset.management_form }}
+                    
+                    {% for form in formset %}
+                        <div class="member-form">
+                            {% if form.instance.pk %}
+                                <h5>Edit Member: {{ form.instance.first_name }} {{ form.instance.last_name }}</h5>
+                            {% else %}
+                                <h5>New Member</h5>
+                            {% endif %}
+                            
+                            {{ form.id }}
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                                    {{ form.first_name }}
+                                    {% if form.first_name.errors %}
+                                    <div class="text-danger">
+                                        {{ form.first_name.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                                    {{ form.last_name }}
+                                    {% if form.last_name.errors %}
+                                    <div class="text-danger">
+                                        {{ form.last_name.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3 mt-3">
+                                <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">Date of Birth</label>
+                                {{ form.date_of_birth }}
+                                {% if form.date_of_birth.errors %}
+                                <div class="text-danger">
+                                    {{ form.date_of_birth.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            {% if form.instance.pk %}
+                                <div class="mb-3">
+                                    <label class="form-label">Trigram</label>
+                                    <input type="text" value="{{ form.instance.trigram }}" class="form-control" readonly>
+                                </div>
+                                
+                                <div class="delete-row">
+                                    <div class="form-check">
+                                        {{ form.DELETE }}
+                                        <label class="form-check-label text-danger" for="{{ form.DELETE.id_for_label }}">
+                                            Delete this member
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'financial_settings' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

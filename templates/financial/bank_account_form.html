@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if account %}Update{% else %}Add{% endif %} Bank Account - Finance Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+    .select2-container {
+        width: 100% !important;
+    }
+</style>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>{% if account %}Update{% else %}Add{% endif %} Bank Account</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Account Name</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="text-danger">
+                            {{ form.name.errors }}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Enter a descriptive name for this account (e.g. "Joint Checking")</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.account_number.id_for_label }}" class="form-label">Account Number (Optional)</label>
+                        {{ form.account_number }}
+                        {% if form.account_number.errors %}
+                        <div class="text-danger">
+                            {{ form.account_number.errors }}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">You can leave this blank if you prefer not to store the account number</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.members.id_for_label }}" class="form-label">Household Members</label>
+                        {{ form.members }}
+                        {% if form.members.errors %}
+                        <div class="text-danger">
+                            {{ form.members.errors }}
+                        </div>
+                        {% endif %}
+                        <div class="form-text">Select which household members have access to this account</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'bank_account_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if account %}Update{% else %}Add{% endif %} Account
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#{{ form.members.id_for_label }}').select2({
+            placeholder: 'Select members',
+            width: '100%'
+        });
+    });
+</script>
+{% endblock %}

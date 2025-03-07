@@ -68,10 +68,31 @@ Open your browser and navigate to http://127.0.0.1:8000/
 4. When logging out, the user is redirected to the login page with a logout confirmation message
 5. Protected routes require login (redirects to login page if not authenticated)
 
+## Features
+
+### User Authentication
+- Login/logout functionality
+- Password change capability
+- Protected routes requiring authentication
+
+### Financial Environment
+- Tax Household Management
+  - Create and update a personal tax household
+  - Add, edit, and remove household members
+  - Each member has auto-generated trigram (first letter of first name + first two letters of last name)
+- Bank Account Management
+  - Link bank accounts to household members
+  - Associate multiple members with each account
+  - Track account creation and modification dates
+
 ## Project Structure
 
 - `finance_tracker/`: Django project settings
 - `core/`: Main application with views and authentication
+  - `models.py`: Data models for Tax Household, Household Members, and Bank Accounts
+  - `forms.py`: Forms for managing financial data
+  - `views.py`: Views for authentication and financial management
+  - `urls.py`: URL routing configuration
 - `templates/`: HTML templates with Bootstrap integration
   - `base.html`: Base template with responsive navbar
   - `home.html`: Public homepage with login redirect
@@ -80,8 +101,18 @@ Open your browser and navigate to http://127.0.0.1:8000/
     - `login.html`: Login form
     - `password_change.html`: Change password form
     - `password_change_done.html`: Password change confirmation
+  - `financial/`: Financial management templates
+    - `settings.html`: Financial settings overview
+    - `household_form.html`: Create/edit tax household
+    - `household_members.html`: Manage multiple household members
+    - `member_form.html`: Add/edit individual household members
+    - `member_confirm_delete.html`: Confirm member deletion
+    - `bank_account_list.html`: List bank accounts
+    - `bank_account_form.html`: Add/edit bank accounts
 
 ## Technologies
 - Django 5.1.7
 - Bootstrap 5.3.2 (via CDN)
+- Select2 for enhanced multi-select functionality
 - Django's built-in authentication system
+- Python-dotenv for environment variable management

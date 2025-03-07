@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Bank Accounts - Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3>Bank Accounts</h3>
+                <a href="{% url 'bank_account_create' %}" class="btn btn-primary">Add Account</a>
+            </div>
+            <div class="card-body">
+                <p class="lead">Manage bank accounts linked to your household members.</p>
+                
+                {% if bank_accounts %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Account Name</th>
+                                    <th>Account Number</th>
+                                    <th>Members</th>
+                                    <th>Created On</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for account in bank_accounts %}
+                                <tr>
+                                    <td>{{ account.name }}</td>
+                                    <td>{{ account.account_number|default:"Not Provided" }}</td>
+                                    <td>
+                                        {% for member in account.members.all %}
+                                            <span class="badge bg-info text-dark">{{ member.trigram }}</span>
+                                        {% empty %}
+                                            <span class="text-muted">No members linked</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>{{ account.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'bank_account_update' account.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <p>You haven't added any bank accounts yet. Click the button above to add your first account.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
