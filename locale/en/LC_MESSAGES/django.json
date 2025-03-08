@@ -135,5 +135,33 @@
   
   "Create": "Create",
   "Household": "Household",
-  "Household Name": "Household Name"
+  "Household Name": "Household Name",
+  "Delete Household Member":"Delete Household Member",
+  "Delete Member":"Delete Member",
+  "Are you sure you want to delete":"Are you sure you want to delete",
+  "This action cannot be undone. This will permanently delete the member from your tax household.":"This action cannot be undone. This will permanently delete the member from your tax household.",
+  "Name:":"Name :",
+  "Trigram:":"Trigram :",
+  "Date of Birth:":"Date of Birth :",
+
+
+  "Create Transaction Categories":"Create Transaction Categories",
+  "Create categories to organize your income and expenses.":"Create categories to organize your income and expenses.",
+  "Categories":"Categories",
+  "Manage your transaction categories for income and expenses.":"Manage your transaction categories for income and expenses.",
+  "Manage Categories":"Manage Categories",
+  "Transaction Categories":"Transaction Categories",
+  "Add Category":"Add Category",
+  "Manage your transaction categories for organizing income and expenses.":"Manage your transaction categories for organizing income and expenses.",
+  "Transaction Categories":"Transaction Categories",
+  "Add New Category":"Add Category",
+  "Category Name":"Category Name",
+  "Back":"Back",
+  "Create Category":"Create Category",
+  "Edit Category":"Edit Category",
+  "Upadate Category":"Udpate Category",
+  "Are you sure you want to delete this category?":"Are you sure you want to delete this category?",
+  "This action cannot be undone. Any transactions using this category will need to be recategorized.":"This action cannot be undone. Any transactions using this category will need to be recategorized.",
+  "Delete Category":"Delete Category"
+
 }

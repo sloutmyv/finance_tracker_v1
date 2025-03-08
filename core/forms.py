@@ -1,7 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
-from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, PaymentMethod
+from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, PaymentMethod, TransactionCategory
 
 class DateInput(forms.DateInput):
     input_type = 'date'
@@ -93,4 +93,15 @@ class PaymentMethodForm(forms.ModelForm):
         }
         help_texts = {
             'name': _('A descriptive name for the payment method (e.g., "American Express", "BNP Checkbook")'),
+        }
+
+class TransactionCategoryForm(forms.ModelForm):
+    class Meta:
+        model = TransactionCategory
+        fields = ['name']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+        help_texts = {
+            'name': _('Category name (e.g., "Groceries", "Rent", "Salary")'),
         }

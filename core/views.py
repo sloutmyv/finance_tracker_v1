@@ -5,9 +5,10 @@ from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.http import HttpResponseRedirect
 from django.db import transaction
+from django.utils.translation import get_language
 
-from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType
-from .forms import TaxHouseholdForm, HouseholdMemberForm, HouseholdMemberFormSet, BankAccountForm
+from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, TransactionCategory
+from .forms import TaxHouseholdForm, HouseholdMemberForm, HouseholdMemberFormSet, BankAccountForm, TransactionCategoryForm
 
 def home(request):
     if request.user.is_authenticated:
@@ -25,6 +26,7 @@ def dashboard(request):
     has_household = False
     has_members = False
     has_bank_accounts = False
+    has_categories = False
     setup_complete = False
     
     try:
@@ -41,8 +43,12 @@ def dashboard(request):
             bank_accounts = BankAccount.objects.filter(members__in=members).distinct()
             has_bank_accounts = bank_accounts.exists()
         
+        # Check if the household has any categories
+        if has_bank_accounts:
+            has_categories = TransactionCategory.objects.filter(tax_household=household).exists()
+        
         # Financial environment is complete when all steps are done
-        setup_complete = has_household and has_members and has_bank_accounts
+        setup_complete = has_household and has_members and has_bank_accounts and has_categories
     
     except TaxHousehold.DoesNotExist:
         # User doesn't have a tax household yet
@@ -53,6 +59,7 @@ def dashboard(request):
         'has_household': has_household,
         'has_members': has_members,
         'has_bank_accounts': has_bank_accounts,
+        'has_categories': has_categories,
         'setup_complete': setup_complete,
     })
 
@@ -316,3 +323,97 @@ def bank_account_update(request, pk):
     
     return render(request, 'financial/bank_account_form.html', {'form': form, 'account': account})
 
+# Transaction Category Views
+@login_required
+def category_list(request):
+    """View to list transaction categories"""
+    try:
+        household = request.user.tax_household
+        
+        # Check if they have bank accounts (prerequisite)
+        has_bank_accounts = BankAccount.objects.filter(members__in=household.members.all()).exists()
+        
+        if not has_bank_accounts:
+            messages.warning(request, "You need to create bank accounts before adding categories.")
+            return redirect('bank_account_create')
+        
+        # Get all categories, ordered alphabetically
+        categories = TransactionCategory.objects.filter(
+            tax_household=household
+        ).order_by('name')
+        
+        return render(request, 'financial/category_list.html', {
+            'categories': categories,
+            'has_household': True,
+            'has_bank_accounts': True,
+        })
+        
+    except TaxHousehold.DoesNotExist:
+        messages.error(request, "You need to create a tax household first.")
+        return redirect('household_create')
+
+@login_required
+def category_create(request):
+    """View to create a new transaction category"""
+    try:
+        household = request.user.tax_household
+        
+        # Check if they have bank accounts (prerequisite)
+        if not BankAccount.objects.filter(members__in=household.members.all()).exists():
+            messages.error(request, "You need to create bank accounts first.")
+            return redirect('bank_account_create')
+    except TaxHousehold.DoesNotExist:
+        messages.error(request, "You need to create a tax household first.")
+        return redirect('household_create')
+    
+    if request.method == 'POST':
+        form = TransactionCategoryForm(request.POST)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.tax_household = household
+            category.save()
+            messages.success(request, f"Category '{category.name}' created successfully!")
+            return redirect('category_list')
+    else:
+        form = TransactionCategoryForm()
+    
+    return render(request, 'financial/category_form.html', {'form': form})
+
+@login_required
+def category_update(request, pk):
+    """View to update a transaction category"""
+    category = get_object_or_404(TransactionCategory, pk=pk)
+    
+    # Verify the category belongs to the user's household
+    if category.tax_household.user != request.user:
+        messages.error(request, "You don't have permission to edit this category.")
+        return redirect('category_list')
+    
+    if request.method == 'POST':
+        form = TransactionCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            updated_category = form.save()
+            messages.success(request, f"Category '{updated_category.name}' updated successfully!")
+            return redirect('category_list')
+    else:
+        form = TransactionCategoryForm(instance=category)
+    
+    return render(request, 'financial/category_form.html', {'form': form, 'category': category})
+
+@login_required
+def category_delete(request, pk):
+    """View to delete a transaction category"""
+    category = get_object_or_404(TransactionCategory, pk=pk)
+    
+    # Verify the category belongs to the user's household
+    if category.tax_household.user != request.user:
+        messages.error(request, "You don't have permission to delete this category.")
+        return redirect('category_list')
+    
+    if request.method == 'POST':
+        category_name = category.name
+        category.delete()
+        messages.success(request, f"Category '{category_name}' deleted successfully!")
+        return redirect('category_list')
+    
+    return render(request, 'financial/category_confirm_delete.html', {'category': category})

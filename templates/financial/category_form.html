@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load i18n_extras %}
+
+{% block title %}
+    {% if category %}
+        {% translate_json "Edit Category" %} - {% translate_json "Finance Tracker" %}
+    {% else %}
+        {% translate_json "Add Category" %} - {% translate_json "Finance Tracker" %}
+    {% endif %}
+{% endblock %}
+
+{% block extra_css %}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-tags me-2 fs-4"></i>
+                    <h3 class="mb-0">
+                        {% if category %}
+                            {% translate_json "Edit Category" %}
+                        {% else %}
+                            {% translate_json "Add Category" %}
+                        {% endif %}
+                    </h3>
+                </div>
+            </div>
+            <div class="card-body">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'category_list' %}">{% translate_json "Categories" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">
+                            {% if category %}
+                                {% translate_json "Edit" %}
+                            {% else %}
+                                {% translate_json "Add" %}
+                            {% endif %}
+                        </li>
+                    </ol>
+                </nav>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">{% translate_json "Category Name" %}</label>
+                        {{ form.name }}
+                        <div class="form-text">{{ form.name.help_text }}</div>
+                        {% if form.name.errors %}
+                            <div class="alert alert-danger mt-2">
+                                {{ form.name.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'category_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> {% translate_json "Back" %}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if category %}
+                                <i class="bi bi-save me-1"></i> {% translate_json "Update Category" %}
+                            {% else %}
+                                <i class="bi bi-plus-circle me-1"></i> {% translate_json "Create Category" %}
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

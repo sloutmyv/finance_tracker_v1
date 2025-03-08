@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load i18n_extras %}
 
-{% block title %}Delete Household Member - Finance Tracker{% endblock %}
+{% block title %}{% translate_json "Delete Household Member" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -9,32 +10,32 @@
             <div class="card-header bg-danger text-white">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-person-x-fill me-2 fs-4"></i>
-                    <h3 class="mb-0">Delete Household Member</h3>
+                    <h3 class="mb-0">{% translate_json "Delete Household Member" %}</h3>
                 </div>
             </div>
             <div class="card-body">
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'financial_settings' %}">Family Settings</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Delete Member</li>
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'financial_settings' %}">{% translate_json "Family Settings" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{% translate_json "Delete Member" %}</li>
                     </ol>
                 </nav>
-                <p class="lead">Are you sure you want to delete <strong>{{ member.first_name }} {{ member.last_name }}</strong>?</p>
+                <p class="lead">{% translate_json "Are you sure you want to delete" %} <strong>{{ member.first_name }} {{ member.last_name }}</strong>?</p>
                 
                 <div class="alert alert-warning">
-                    <p>This action cannot be undone. This will permanently delete the member from your tax household.</p>
+                    <p>{% translate_json "This action cannot be undone. This will permanently delete the member from your tax household." %}</p>
                 </div>
                 
                 <div class="mt-4">
                     <dl class="row">
-                        <dt class="col-sm-4">Name:</dt>
+                        <dt class="col-sm-4">{% translate_json "Name" %}:</dt>
                         <dd class="col-sm-8">{{ member.first_name }} {{ member.last_name }}</dd>
                         
-                        <dt class="col-sm-4">Trigram:</dt>
+                        <dt class="col-sm-4">{% translate_json "Trigram" %}:</dt>
                         <dd class="col-sm-8">{{ member.trigram }}</dd>
                         
-                        <dt class="col-sm-4">Date of Birth:</dt>
+                        <dt class="col-sm-4">{% translate_json "Date of Birth" %}:</dt>
                         <dd class="col-sm-8">{{ member.date_of_birth|date:"F d, Y" }}</dd>
                     </dl>
                 </div>
@@ -43,10 +44,10 @@
                     {% csrf_token %}
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <a href="{% url 'financial_settings' %}" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle me-1"></i> Cancel
+                            <i class="bi bi-x-circle me-1"></i> {% translate_json "Cancel" %}
                         </a>
                         <button type="submit" class="btn btn-danger">
-                            <i class="bi bi-trash me-1"></i> Delete Member
+                            <i class="bi bi-trash me-1"></i> {% translate_json "Delete Member" %}
                         </button>
                     </div>
                 </form>

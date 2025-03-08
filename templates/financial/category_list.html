@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% load i18n_extras %}
+
+{% block title %}{% translate_json "Transaction Categories" %} - {% translate_json "Finance Tracker" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .category-card {
+        transition: transform 0.2s;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .category-icon {
+        font-size: 2rem;
+        display: block;
+        margin: 0 auto 0.5rem auto;
+    }
+    
+    .category-header {
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        padding: 1rem;
+    }
+    
+    .category-actions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .category-card:hover .category-actions {
+        visibility: visible;
+        opacity: 1;
+    }
+    
+    .category-actions .btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        margin-left: 5px;
+    }
+    
+    .category-name {
+        text-align: center;
+        margin-top: 1rem;
+        font-weight: 500;
+        font-size: 1.1rem;
+    }
+    
+    .type-header {
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+                <div>
+                    <i class="bi bi-tags me-2 fs-4"></i>
+                    <h3 class="mb-0 d-inline">{% translate_json "Transaction Categories" %}</h3>
+                </div>
+                {% if has_bank_accounts %}
+                <a href="{% url 'category_create' %}" class="btn btn-light">
+                    <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add Category" %}
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{% translate_json "Transaction Categories" %}</li>
+                    </ol>
+                </nav>
+                
+                {% if not has_household %}
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">{% translate_json "You need to create a tax household first" %}</h5>
+                        <p>{% translate_json "Before adding categories, you need to set up your tax household." %}</p>
+                        <hr>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <a href="{% url 'household_create' %}" class="btn btn-primary">
+                                <i class="bi bi-house-add-fill me-1"></i> {% translate_json "Create Tax Household" %}
+                            </a>
+                        </div>
+                    </div>
+                {% elif not has_bank_accounts %}
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">{% translate_json "You need to add bank accounts first" %}</h5>
+                        <p>{% translate_json "Before adding categories, you need to set up your bank accounts." %}</p>
+                        <hr>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <a href="{% url 'bank_account_create' %}" class="btn btn-primary">
+                                <i class="bi bi-bank me-1"></i> {% translate_json "Add Bank Account" %}
+                            </a>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="lead">{% translate_json "Manage your transaction categories for organizing income and expenses." %}</p>
+                    
+                    <!-- Transaction Categories -->
+                    <h4 class="type-header mt-4">
+                        <i class="bi bi-tags me-2"></i>
+                        {% translate_json "Transaction Categories" %}
+                    </h4>
+                    
+                    {% if categories %}
+                        <div class="d-flex flex-wrap gap-2 mb-5">
+                            {% for category in categories %}
+                            <div class="position-relative d-inline-flex align-items-center border border-primary rounded-pill py-1 px-3" style="font-size: 0.85rem;">
+                                <i class="bi me-1 text-primary"></i>
+                                <span>{{ category.name }}</span>
+                                <div class="ms-2">
+                                    <a href="{% url 'category_update' category.pk %}" class="text-primary me-1" style="text-decoration: none;">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </a>
+                                    <a href="{% url 'category_delete' category.pk %}" class="text-danger" style="text-decoration: none;">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <p>{% translate_json "You haven't added any categories yet. Click the button above to add your first category." %}</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'category_create' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add New Category" %}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
