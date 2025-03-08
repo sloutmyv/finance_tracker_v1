@@ -28,6 +28,7 @@ urlpatterns = [
     path('financial/bank-accounts/', views.bank_account_list, name='bank_account_list'),
     path('financial/bank-account/create/', views.bank_account_create, name='bank_account_create'),
     path('financial/bank-account/<int:pk>/update/', views.bank_account_update, name='bank_account_update'),
+    path('financial/bank-account/<int:pk>/delete/', views.bank_account_delete, name='bank_account_delete'),
     
     # Transaction Category URLs
     path('financial/categories/', views.category_list, name='category_list'),

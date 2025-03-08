@@ -1,5 +1,5 @@
 {
-  "Finance Tracker": "Suivi financier",
+  "Finance Tracker": "Finance Tracker",
   "Dashboard": "Tableau de bord",
   "Financial Environment": "Environnement financier",
   "Family Settings": "Paramètres familiaux",
@@ -154,5 +154,9 @@
   "Household": "Foyer fiscal",
   "Household Name": "Nom du foyer fiscal",
   "Delete Household Member": "Supprimer un membre du foyer fiscal",
-  "Delete Member": "Supprimer le membre"
+  "Delete Member": "Supprimer le membre",
+  "Delete Bank Account": "Supprimer le compte bancaire",
+  "Are you sure you want to delete this bank account?": "Êtes-vous sûr de vouloir supprimer ce compte bancaire?", 
+  "This action cannot be undone. All account information will be permanently removed.": "Cette action est irréversible. Toutes les informations du compte seront définitivement supprimées.",
+  "Delete Account": "Supprimer le compte"
 }

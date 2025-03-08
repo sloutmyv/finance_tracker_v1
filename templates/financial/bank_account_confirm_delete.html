@@ -1,20 +1,20 @@
 {% extends 'base.html' %}
 {% load i18n_extras %}
 
-{% block title %}{% translate_json "Delete Category" %} - {% translate_json "Finance Tracker" %}{% endblock %}
+{% block title %}{% translate_json "Delete Bank Account" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-6 offset-md-3">
         <div class="card">
             <div class="card-header bg-danger text-white">
-                <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i> {% translate_json "Delete Category" %}</h4>
+                <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i> {% translate_json "Delete Bank Account" %}</h4>
             </div>
             <div class="card-body">
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'category_list' %}">{% translate_json "Categories" %}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'bank_account_list' %}">{% translate_json "Bank Accounts" %}</a></li>
                         <li class="breadcrumb-item active" aria-current="page">{% translate_json "Delete" %}</li>
                     </ol>
                 </nav>
@@ -22,24 +22,30 @@
                 <div class="alert alert-warning">
                     <p class="lead">
                         <i class="bi bi-exclamation-circle me-2"></i>
-                        {% translate_json "Are you sure you want to delete this category?" %}
+                        {% translate_json "Are you sure you want to delete this bank account?" %}
                     </p>
-                    <p>{% translate_json "This action cannot be undone. Any transactions using this category will need to be recategorized." %}</p>
+                    <p>{% translate_json "This action cannot be undone. All account information will be permanently removed." %}</p>
                 </div>
                 
-                <div class="d-inline-flex align-items-center border border-primary rounded-pill py-1 px-3 mb-4" style="font-size: 0.95rem;">
-                    <i class="bi bi-tag me-1 text-primary"></i>
-                    <span>{{ category.name }}</span>
+                <div class="list-group mb-4">
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ account.name }}</h5>
+                            <span class="badge bg-secondary">{{ account.currency }}</span>
+                        </div>
+                        <p class="mb-1">{{ account.bank_name }}</p>
+                        <small class="text-muted">{% translate_json "Ref" %}: {{ account.reference }}</small>
+                    </div>
                 </div>
                 
                 <form method="post">
                     {% csrf_token %}
                     <div class="d-flex justify-content-between mt-4">
-                        <a href="{% url 'category_list' %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'bank_account_list' %}" class="btn btn-outline-secondary">
                             <i class="bi bi-x-circle me-1"></i> {% translate_json "Cancel" %}
                         </a>
                         <button type="submit" class="btn btn-danger">
-                            <i class="bi bi-trash-fill me-1"></i> {% translate_json "Delete Category" %}
+                            <i class="bi bi-trash-fill me-1"></i> {% translate_json "Delete Account" %}
                         </button>
                     </div>
                 </form>

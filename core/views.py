@@ -323,6 +323,24 @@ def bank_account_update(request, pk):
     
     return render(request, 'financial/bank_account_form.html', {'form': form, 'account': account})
 
+@login_required
+def bank_account_delete(request, pk):
+    """View to delete a bank account"""
+    account = get_object_or_404(BankAccount, pk=pk)
+    
+    # Verify the account belongs to a member in the user's household
+    if not account.members.filter(tax_household__user=request.user).exists():
+        messages.error(request, "You don't have permission to delete this bank account.")
+        return redirect('bank_account_list')
+    
+    if request.method == 'POST':
+        account_name = account.name
+        account.delete()
+        messages.success(request, f"Bank account '{account_name}' deleted successfully!")
+        return redirect('bank_account_list')
+    
+    return render(request, 'financial/bank_account_confirm_delete.html', {'account': account})
+
 # Transaction Category Views
 @login_required
 def category_list(request):

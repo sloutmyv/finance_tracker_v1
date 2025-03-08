@@ -101,9 +101,14 @@
                                             {% endfor %}
                                         </td>
                                         <td>
-                                            <a href="{% url 'bank_account_update' account.pk %}" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-pencil-fill me-1"></i> {% translate_json "Edit" %}
-                                            </a>
+                                            <div>
+                                                <a href="{% url 'bank_account_update' account.pk %}" class="text-primary me-2" style="text-decoration: none;">
+                                                    <i class="bi bi-pencil-fill"></i>
+                                                </a>
+                                                <a href="{% url 'bank_account_delete' account.pk %}" class="text-danger" style="text-decoration: none;">
+                                                    <i class="bi bi-trash-fill"></i>
+                                                </a>
+                                            </div>
                                         </td>
                                     </tr>
                                     {% endfor %}
