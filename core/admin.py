@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType
+from django.utils.translation import gettext_lazy as _
+from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, PaymentMethod
 
 class HouseholdMemberInline(admin.TabularInline):
     model = HouseholdMember
@@ -42,6 +43,23 @@ class BankAccountAdmin(admin.ModelAdmin):
         }),
         ('Timestamps', {
             'fields': ('timestamp', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+@admin.register(PaymentMethod)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    list_display = ('name', 'icon', 'is_active', 'created_at', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    list_editable = ('is_active',)
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        (_('Basic Information'), {
+            'fields': ('name', 'icon', 'is_active')
+        }),
+        (_('Timestamps'), {
+            'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )

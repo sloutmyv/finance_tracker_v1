@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load i18n_extras %}
+
+{% block title %}{% translate_json "Payment Methods" %} - {% translate_json "Finance Tracker" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-method-card {
+        transition: transform 0.2s;
+    }
+    
+    .payment-method-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .payment-method-icon {
+        font-size: 2rem;
+        display: block;
+        margin: 0 auto 0.5rem auto;
+    }
+    
+    .system-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+                <div>
+                    <i class="bi bi-wallet2 me-2 fs-4"></i>
+                    <h3 class="mb-0 d-inline">{% translate_json "Payment Methods" %}</h3>
+                </div>
+                {% if has_household and has_bank_accounts %}
+                <a href="{% url 'payment_method_create' %}" class="btn btn-light">
+                    <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add Payment Method" %}
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{% translate_json "Payment Methods" %}</li>
+                    </ol>
+                </nav>
+                
+                {% if not has_household %}
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">{% translate_json "You need to create a tax household first" %}</h5>
+                        <p>{% translate_json "Before adding payment methods, you need to set up your tax household." %}</p>
+                        <hr>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <a href="{% url 'household_create' %}" class="btn btn-primary">
+                                <i class="bi bi-house-add-fill me-1"></i> {% translate_json "Create Tax Household" %}
+                            </a>
+                        </div>
+                    </div>
+                {% elif not has_bank_accounts %}
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">{% translate_json "You need to add bank accounts first" %}</h5>
+                        <p>{% translate_json "Before adding payment methods, you need to set up your bank accounts." %}</p>
+                        <hr>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <a href="{% url 'bank_account_create' %}" class="btn btn-primary">
+                                <i class="bi bi-bank me-1"></i> {% translate_json "Add Bank Account" %}
+                            </a>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="lead">{% translate_json "Manage your payment methods for recording financial transactions." %}</p>
+                    
+                    <!-- System-defined payment methods -->
+                    <h4 class="mt-4 mb-3">{% translate_json "System Payment Methods" %}</h4>
+                    <p>{% translate_json "These are standard payment methods available to all users. They cannot be modified or deleted." %}</p>
+                    
+                    <div class="row mb-4">
+                        {% for method in system_payment_methods %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card payment-method-card h-100">
+                                <div class="card-body text-center">
+                                    <span class="badge bg-secondary system-badge">{% translate_json "System" %}</span>
+                                    <i class="{{ method.icon }} payment-method-icon"></i>
+                                    <h5 class="card-title">{{ method.name }}</h5>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <p>{% translate_json "No system payment methods found. Contact the administrator." %}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- User-defined payment methods -->
+                    <h4 class="mt-4 mb-3">{% translate_json "Your Custom Payment Methods" %}</h4>
+                    <p>{% translate_json "These are payment methods you've created for your household." %}</p>
+                    
+                    <div class="row">
+                        {% for method in user_payment_methods %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card payment-method-card h-100">
+                                <div class="card-body text-center">
+                                    <i class="{{ method.icon }} payment-method-icon"></i>
+                                    <h5 class="card-title">{{ method.name }}</h5>
+                                    <div class="mt-3">
+                                        <a href="{% url 'payment_method_update' method.pk %}" class="btn btn-sm btn-outline-primary me-1">
+                                            <i class="bi bi-pencil-fill"></i> {% translate_json "Edit" %}
+                                        </a>
+                                        <a href="{% url 'payment_method_delete' method.pk %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <p>{% translate_json "You haven't added any custom payment methods yet. Click the button above to add your first one." %}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'payment_method_create' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add New Payment Method" %}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% load i18n_extras %}
+
+{% block title %}
+    {% if payment_method %}
+        {% translate_json "Edit Payment Method" %} - {% translate_json "Finance Tracker" %}
+    {% else %}
+        {% translate_json "Add Payment Method" %} - {% translate_json "Finance Tracker" %}
+    {% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .icon-radio-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .icon-radio-list input[type="radio"] {
+        display: none;
+    }
+    
+    .icon-radio-list label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 90px;
+        height: 90px;
+    }
+    
+    .icon-radio-list label i {
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+    
+    .icon-radio-list label span {
+        font-size: 0.8rem;
+        text-align: center;
+    }
+    
+    .icon-radio-list input[type="radio"]:checked + label {
+        background-color: var(--primary-light);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-3px);
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .icon-radio-list label:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary-light);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    {% if payment_method %}
+                        <i class="bi bi-pencil-square me-2"></i> {% translate_json "Edit Payment Method" %}
+                    {% else %}
+                        <i class="bi bi-plus-circle me-2"></i> {% translate_json "Add Payment Method" %}
+                    {% endif %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'payment_method_list' %}">{% translate_json "Payment Methods" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">
+                            {% if payment_method %}
+                                {% translate_json "Edit" %}
+                            {% else %}
+                                {% translate_json "Add" %}
+                            {% endif %}
+                        </li>
+                    </ol>
+                </nav>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">{% translate_json "Name" %}</label>
+                        {{ form.name }}
+                        <div class="form-text text-muted">{{ form.name.help_text }}</div>
+                        {% if form.name.errors %}
+                            <div class="alert alert-danger mt-2">
+                                {{ form.name.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">{% translate_json "Icon" %}</label>
+                        <div class="form-text text-muted mb-2">{{ form.icon.help_text }}</div>
+                        
+                        <div class="icon-radio-list">
+                            {% for choice in form.icon.field.choices %}
+                                <div>
+                                    <input 
+                                        type="radio" 
+                                        name="{{ form.icon.name }}" 
+                                        id="icon_{{ choice.0 }}" 
+                                        value="{{ choice.0 }}" 
+                                        {% if form.icon.value == choice.0 %}checked{% endif %}
+                                    >
+                                    <label for="icon_{{ choice.0 }}">
+                                        <i class="{{ choice.0 }}"></i>
+                                        <span>{{ choice.1 }}</span>
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if form.icon.errors %}
+                            <div class="alert alert-danger mt-2">
+                                {{ form.icon.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'payment_method_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> {% translate_json "Back" %}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if payment_method %}
+                                <i class="bi bi-save me-1"></i> {% translate_json "Update Payment Method" %}
+                            {% else %}
+                                <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add Payment Method" %}
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

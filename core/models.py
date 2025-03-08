@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 
 class TaxHousehold(models.Model):
     """Model representing a tax household for a user"""
@@ -114,3 +115,19 @@ class BankAccount(models.Model):
     
     class Meta:
         ordering = ['bank_name', 'name']
+
+class PaymentMethod(models.Model):
+    """Model representing a payment method for transactions (admin-only)"""
+    name = models.CharField(max_length=100, help_text=_("Name of the payment method"))
+    icon = models.CharField(max_length=50, blank=True, help_text=_("Bootstrap icon class (e.g., 'bi-credit-card')"))
+    is_active = models.BooleanField(default=True, help_text=_("Whether this payment method is active"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+        
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = _("Payment Method")
+        verbose_name_plural = _("Payment Methods")

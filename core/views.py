@@ -315,3 +315,4 @@ def bank_account_update(request, pk):
         form.fields['members'].queryset = household.members.all()
     
     return render(request, 'financial/bank_account_form.html', {'form': form, 'account': account})
+
