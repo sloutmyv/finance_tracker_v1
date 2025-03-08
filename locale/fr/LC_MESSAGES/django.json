@@ -133,9 +133,26 @@
   "CFP Franc (₣)": "Franc CFP (₣)",
   "Chinese Yuan (¥)": "Yuan chinois (¥)",
   
+  "Categories": "Catégories",
+  "Category": "Catégorie",
+  "Category Name": "Nom de la catégorie",
+  "Category name": "Nom de la catégorie",
+  "Add Category": "Ajouter une catégorie",
+  "Edit Category": "Modifier la catégorie",
+  "Delete Category": "Supprimer la catégorie",
+  "Transaction Categories": "Catégories de transactions",
+  "Add New Category": "Ajouter une catégorie",
+  "Manage Categories": "Gérer les catégories",
+  "Manage your transaction categories for income and expenses.": "Gérez vos catégories de transactions pour les revenus et les dépenses.",
+  "You haven't added any categories yet.": "Vous n'avez ajouté aucune catégorie.",
+  "Category name (e.g., \"Groceries\", \"Rent\", \"Salary\")": "Nom de la catégorie (ex.: \"Courses\", \"Loyer\", \"Salaire\")",
+  "Back": "Retour",
+  "Are you sure you want to delete": "Êtes-vous sûr de vouloir supprimer",
+  "This action cannot be undone. This will permanently delete the member from your tax household.": "Cette action est irréversible. Cela supprimera définitivement ce membre de votre foyer fiscal.",
+  
   "Create": "Créer",
   "Household": "Foyer fiscal",
   "Household Name": "Nom du foyer fiscal",
   "Delete Household Member": "Supprimer un membre du foyer fiscal",
-  "Delete Member": "Supprimer
- }
+  "Delete Member": "Supprimer le membre"
+}
