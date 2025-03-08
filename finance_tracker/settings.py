@@ -159,6 +159,9 @@ LANGUAGE_COOKIE_SAMESITE = None
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 # Authentication settings
 LOGIN_URL = 'login'
