@@ -90,13 +90,25 @@ Open your browser and navigate to http://127.0.0.1:8000/
   - Associate multiple members with each account
   - Track account creation and modification dates
 
+### Transaction Categorization
+- Transaction Category Management
+  - Create, edit, and delete personalized transaction categories
+  - Categories linked to your household for organization
+  - Simple and intuitive interface for category management
+- Cost Center Organization
+  - Group categories into cost centers for higher-level organization
+  - 18 color options for visual differentiation of cost centers
+  - Assign multiple categories to cost centers with multi-select functionality
+  - Visual indicators showing category counts per cost center
+  - Distinctive colored borders (8px) for easy visual identification
+
 ## Project Structure
 
 - `finance_tracker/`: Django project settings
 - `core/`: Main application with views and authentication
-  - `models.py`: Data models for Tax Household, Household Members, and Bank Accounts
-  - `forms.py`: Forms for managing financial data
-  - `views.py`: Views for authentication and financial management
+  - `models.py`: Data models for Tax Household, Household Members, Bank Accounts, Transaction Categories, and Cost Centers
+  - `forms.py`: Forms for managing financial data, categories, and cost centers
+  - `views.py`: Views for authentication, financial management, and categorization
   - `urls.py`: URL routing configuration
 - `templates/`: HTML templates with Bootstrap integration
   - `base.html`: Base template with responsive navbar
@@ -114,6 +126,12 @@ Open your browser and navigate to http://127.0.0.1:8000/
     - `member_confirm_delete.html`: Confirm member deletion
     - `bank_account_list.html`: List bank accounts
     - `bank_account_form.html`: Add/edit bank accounts
+    - `category_list.html`: Main categories management page (includes both transaction categories and cost centers)
+    - `category_form.html`: Add/edit transaction categories
+    - `category_confirm_delete.html`: Confirm category deletion
+    - `cost_center_form.html`: Add/edit cost centers
+    - `cost_center_confirm_delete.html`: Confirm cost center deletion
+    - `cost_center_category_form.html`: Assign categories to cost centers
 
 ## Technologies
 - Django 5.1.7
@@ -122,3 +140,19 @@ Open your browser and navigate to http://127.0.0.1:8000/
 - Django's built-in authentication system
 - Python-dotenv for environment variable management
 - Internationalization (i18n) support for English and French
+
+## Recent Improvements
+- **Enhanced Category Management**: Implemented a streamlined interface for managing transaction categories
+- **Cost Center Framework**: Added a higher-level organizational structure with cost centers
+- **Visual Differentiation**: Introduced a color system with 18 options for cost centers
+- **UI Refinements**: Improved visual hierarchy with colored borders and category counts
+- **Multi-Category Assignment**: Added the ability to assign multiple categories to cost centers at once
+- **Complete Translations**: Full English and French support for all new features
+
+## Development Roadmap
+Future development plans include:
+- **Transaction Management**: Implementing transaction recording and categorization
+- **Reporting & Analytics**: Adding financial reporting and visualization capabilities
+- **Data Import/Export**: Creating functionality to import transactions from banks
+- **Mobile Optimization**: Further improving the responsive design for mobile users
+- **Budget Planning**: Adding budget creation and tracking features
