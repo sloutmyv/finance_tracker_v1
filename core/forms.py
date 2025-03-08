@@ -44,19 +44,23 @@ class BankAccountForm(forms.ModelForm):
     
     class Meta:
         model = BankAccount
-        fields = ['name', 'bank_name', 'account_type', 'currency', 'members']
+        fields = ['name', 'bank_name', 'account_type', 'currency', 'members', 'balance', 'balance_date']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'bank_name': forms.TextInput(attrs={'class': 'form-control'}),
             'account_type': forms.Select(attrs={'class': 'form-control'}),
             'currency': forms.Select(attrs={'class': 'form-control'}),
             'members': forms.CheckboxSelectMultiple(),
+            'balance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'balance_date': DateInput(attrs={'class': 'form-control'}),
         }
         help_texts = {
             'name': _('A descriptive name for the account, e.g., "Joint Checking" or "Savings"'),
             'bank_name': _('The name of the bank or financial institution'),
             'currency': _('The currency used for this account'),
             'members': _('Select all family members who have access to this account'),
+            'balance': _('The current balance of this account'),
+            'balance_date': _('The date when this balance was recorded'),
         }
 
 class PaymentMethodForm(forms.ModelForm):

@@ -59,6 +59,7 @@
                                         <th>{% translate_json "Account" %}</th>
                                         <th>{% translate_json "Bank" %}</th>
                                         <th>{% translate_json "Type" %}</th>
+                                        <th>{% translate_json "Balance" %}</th>
                                         <th>{% translate_json "Currency" %}</th>
                                         <th>{% translate_json "Created" %}</th>
                                         <th>{% translate_json "Owners" %}</th>
@@ -81,6 +82,12 @@
                                             {% else %}
                                                 <span class="text-muted">{% translate_json "Not set" %}</span>
                                             {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ account.balance }}</strong>
+                                            <div class="small text-muted" title="{{ account.balance_date|date:'F j, Y' }}">
+                                                {% translate_json "as of" %} {{ account.balance_date|date:"M d, Y" }}
+                                            </div>
                                         </td>
                                         <td>{{ account.currency }}</td>
                                         <td><span title="{{ account.timestamp|date:'F j, Y, g:i a' }}">{{ account.timestamp|date:"M d, Y" }}</span></td>

@@ -71,6 +71,17 @@ class BankAccount(models.Model):
         default='EUR',
         help_text=_("Three-letter currency code")
     )
+    # New fields for tracking account balance
+    balance = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        default=0.0, 
+        help_text=_("Current balance of the account")
+    )
+    balance_date = models.DateField(
+        default=timezone.now,
+        help_text=_("Date when the balance was last updated")
+    )
     timestamp = models.DateTimeField(default=timezone.now, help_text=_("Account creation date and time"))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

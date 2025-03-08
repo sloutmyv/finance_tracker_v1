@@ -136,6 +136,43 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <label class="mb-0">{% translate_json "Account Balance" %}</label>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.balance.id_for_label }}" class="form-label">{% translate_json "Current Balance" %}</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">{{ form.currency.value }}</span>
+                                            {{ form.balance }}
+                                        </div>
+                                        <div class="form-text">{{ form.balance.help_text }}</div>
+                                        {% if form.balance.errors %}
+                                        <div class="text-danger mt-2">
+                                            {{ form.balance.errors }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.balance_date.id_for_label }}" class="form-label">{% translate_json "Balance Date" %}</label>
+                                        {{ form.balance_date }}
+                                        <div class="form-text">{{ form.balance_date.help_text }}</div>
+                                        {% if form.balance_date.errors %}
+                                        <div class="text-danger mt-2">
+                                            {{ form.balance_date.errors }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                         <a href="{% url 'bank_account_list' %}" class="btn btn-outline-secondary">
