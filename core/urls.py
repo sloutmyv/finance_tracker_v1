@@ -30,6 +30,13 @@ urlpatterns = [
     path('financial/bank-account/<int:pk>/update/', views.bank_account_update, name='bank_account_update'),
     path('financial/bank-account/<int:pk>/delete/', views.bank_account_delete, name='bank_account_delete'),
     
+    # Cost Center URLs
+    path('financial/cost-centers/', views.cost_center_list, name='cost_center_list'),
+    path('financial/cost-center/create/', views.cost_center_create, name='cost_center_create'),
+    path('financial/cost-center/<int:pk>/update/', views.cost_center_update, name='cost_center_update'),
+    path('financial/cost-center/<int:pk>/delete/', views.cost_center_delete, name='cost_center_delete'),
+    path('financial/cost-center/<int:pk>/assign/', views.assign_categories_to_cost_center, name='cost_center_assign_categories'),
+    
     # Transaction Category URLs
     path('financial/categories/', views.category_list, name='category_list'),
     path('financial/category/create/', views.category_create, name='category_create'),

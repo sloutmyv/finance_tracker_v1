@@ -143,6 +143,41 @@ class PaymentMethod(models.Model):
         verbose_name = _("Payment Method")
         verbose_name_plural = _("Payment Methods")
 
+class CostCenter(models.Model):
+    """Model representing a macro category (cost center) for grouping transaction categories"""
+    
+    tax_household = models.ForeignKey(
+        TaxHousehold,
+        on_delete=models.CASCADE,
+        related_name='cost_centers',
+        help_text=_("The tax household this cost center belongs to")
+    )
+    name = models.CharField(
+        max_length=100, 
+        help_text=_("Cost center name")
+    )
+    color = models.CharField(
+        max_length=20, 
+        default="#7295d8", 
+        help_text=_("Color code for the cost center (hex format)")
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        # Capitalize first letter of name
+        if self.name:
+            self.name = self.name[0].upper() + self.name[1:] if len(self.name) > 0 else self.name
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = _("Cost Center")
+        verbose_name_plural = _("Cost Centers")
+
 class TransactionCategory(models.Model):
     """Model representing a category for transactions"""
     
@@ -151,6 +186,14 @@ class TransactionCategory(models.Model):
         on_delete=models.CASCADE,
         related_name='transaction_categories',
         help_text=_("The tax household this category belongs to")
+    )
+    cost_center = models.ForeignKey(
+        CostCenter,
+        on_delete=models.SET_NULL,
+        related_name='categories',
+        null=True,
+        blank=True,
+        help_text=_("The cost center this category belongs to (optional)")
     )
     name = models.CharField(
         max_length=100, 

@@ -1,7 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
-from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, PaymentMethod, TransactionCategory
+from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, PaymentMethod, TransactionCategory, CostCenter
 
 class DateInput(forms.DateInput):
     input_type = 'date'
@@ -95,13 +95,45 @@ class PaymentMethodForm(forms.ModelForm):
             'name': _('A descriptive name for the payment method (e.g., "American Express", "BNP Checkbook")'),
         }
 
-class TransactionCategoryForm(forms.ModelForm):
+class CostCenterForm(forms.ModelForm):
+    color_choices = [
+        ('#7295d8', _('Blue')),
+        ('#8dc571', _('Green')),
+        ('#eda6b8', _('Pink')),
+        ('#a97e7e', _('Brown')),
+        ('#c2b091', _('Beige')),
+        ('#8a92a9', _('Grey')),
+        ('#b38d97', _('Mauve')),
+        ('#7ba59a', _('Teal')),
+        ('#5b78a7', _('Navy')),
+        ('#f2d184', _('Yellow')),
+    ]
+    
+    color = forms.ChoiceField(
+        choices=color_choices, 
+        widget=forms.RadioSelect(attrs={'class': 'color-radio-list'}),
+        help_text=_('Select a color for the cost center')
+    )
+    
     class Meta:
-        model = TransactionCategory
-        fields = ['name']
+        model = CostCenter
+        fields = ['name', 'color']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
         }
         help_texts = {
+            'name': _('Cost center name (e.g., "Housing", "Transportation", "Food")'),
+        }
+
+class TransactionCategoryForm(forms.ModelForm):
+    class Meta:
+        model = TransactionCategory
+        fields = ['name', 'cost_center']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'cost_center': forms.Select(attrs={'class': 'form-control'}),
+        }
+        help_texts = {
             'name': _('Category name (e.g., "Groceries", "Rent", "Salary")'),
+            'cost_center': _('Cost center this category belongs to (optional)'),
         }

@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load i18n_extras %}
+
+{% block title %}
+    {% if cost_center %}
+        {% translate_json "Edit Cost Center" %} - {% translate_json "Finance Tracker" %}
+    {% else %}
+        {% translate_json "Add Cost Center" %} - {% translate_json "Finance Tracker" %}
+    {% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .color-radio-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .color-radio-list input[type="radio"] {
+        display: none;
+    }
+    
+    .color-radio-list label {
+        display: block;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 3px solid transparent;
+        position: relative;
+    }
+    
+    .color-radio-list input[type="radio"]:checked + label {
+        transform: scale(1.1);
+        border-color: #fff;
+        box-shadow: 0 0 0 2px var(--primary);
+    }
+    
+    .color-radio-list input[type="radio"]:checked + label::after {
+        content: '\2713';
+        color: white;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.5rem;
+        text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+    }
+    
+    .color-radio-list label:hover {
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-diagram-3 me-2 fs-4"></i>
+                    <h3 class="mb-0">
+                        {% if cost_center %}
+                            {% translate_json "Edit Cost Center" %}
+                        {% else %}
+                            {% translate_json "Add Cost Center" %}
+                        {% endif %}
+                    </h3>
+                </div>
+            </div>
+            <div class="card-body">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'cost_center_list' %}">{% translate_json "Cost Centers" %}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">
+                            {% if cost_center %}
+                                {% translate_json "Edit" %}
+                            {% else %}
+                                {% translate_json "Add" %}
+                            {% endif %}
+                        </li>
+                    </ol>
+                </nav>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">{% translate_json "Cost Center Name" %}</label>
+                        {{ form.name }}
+                        <div class="form-text">{{ form.name.help_text }}</div>
+                        {% if form.name.errors %}
+                            <div class="alert alert-danger mt-2">
+                                {{ form.name.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">{% translate_json "Color" %}</label>
+                        <div class="mb-2 text-muted small">{{ form.color.help_text }}</div>
+                        
+                        <div class="color-radio-list">
+                            {% for choice in form.color.field.choices %}
+                                <div>
+                                    <input 
+                                        type="radio" 
+                                        name="{{ form.color.name }}" 
+                                        id="color_{{ forloop.counter }}" 
+                                        value="{{ choice.0 }}" 
+                                        {% if form.color.value == choice.0 %}checked{% endif %}
+                                    >
+                                    <label for="color_{{ forloop.counter }}" style="background-color: {{ choice.0 }};" title="{{ choice.1 }}">
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if form.color.errors %}
+                            <div class="alert alert-danger mt-2">
+                                {{ form.color.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'cost_center_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> {% translate_json "Back" %}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if cost_center %}
+                                <i class="bi bi-save me-1"></i> {% translate_json "Update Cost Center" %}
+                            {% else %}
+                                <i class="bi bi-plus-circle me-1"></i> {% translate_json "Create Cost Center" %}
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -39,9 +39,11 @@
                                 <li><a class="dropdown-item" href="{% url 'bank_account_list' %}">
                                     <i class="bi bi-bank me-2"></i>{% translate_json "Bank Accounts" %}
                                 </a></li>
-                                <li><a class="dropdown-item" href="{% url 'category_list' %}">
-                                    <i class="bi bi-tags me-2"></i>{% translate_json "Categories" %}
-                                </a></li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'category_list' %}">
+                                        <i class="bi bi-tags me-2"></i>{% translate_json "Categories" %}
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                     {% endif %}

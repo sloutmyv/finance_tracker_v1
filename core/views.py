@@ -7,8 +7,8 @@ from django.http import HttpResponseRedirect
 from django.db import transaction
 from django.utils.translation import get_language
 
-from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, TransactionCategory
-from .forms import TaxHouseholdForm, HouseholdMemberForm, HouseholdMemberFormSet, BankAccountForm, TransactionCategoryForm
+from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, TransactionCategory, CostCenter
+from .forms import TaxHouseholdForm, HouseholdMemberForm, HouseholdMemberFormSet, BankAccountForm, TransactionCategoryForm, CostCenterForm
 
 def home(request):
     if request.user.is_authenticated:
@@ -341,10 +341,137 @@ def bank_account_delete(request, pk):
     
     return render(request, 'financial/bank_account_confirm_delete.html', {'account': account})
 
+# Cost Center Views
+# Redirect to category list since we're now showing cost centers there
+@login_required
+def cost_center_list(request):
+    """Redirects to category list which now includes cost centers"""
+    return redirect('category_list')
+
+@login_required
+def cost_center_create(request):
+    """View to create a new cost center"""
+    try:
+        household = request.user.tax_household
+        
+        # Check if they have bank accounts (prerequisite)
+        if not BankAccount.objects.filter(members__in=household.members.all()).exists():
+            messages.error(request, "You need to create bank accounts first.")
+            return redirect('bank_account_create')
+    except TaxHousehold.DoesNotExist:
+        messages.error(request, "You need to create a tax household first.")
+        return redirect('household_create')
+    
+    if request.method == 'POST':
+        form = CostCenterForm(request.POST)
+        if form.is_valid():
+            cost_center = form.save(commit=False)
+            cost_center.tax_household = household
+            cost_center.save()
+            messages.success(request, f"Cost center '{cost_center.name}' created successfully!")
+            return redirect('category_list')
+    else:
+        form = CostCenterForm()
+    
+    return render(request, 'financial/cost_center_form.html', {'form': form})
+
+@login_required
+def cost_center_update(request, pk):
+    """View to update a cost center"""
+    cost_center = get_object_or_404(CostCenter, pk=pk)
+    
+    # Verify the cost center belongs to the user's household
+    if cost_center.tax_household.user != request.user:
+        messages.error(request, "You don't have permission to edit this cost center.")
+        return redirect('cost_center_list')
+    
+    if request.method == 'POST':
+        form = CostCenterForm(request.POST, instance=cost_center)
+        if form.is_valid():
+            updated_cost_center = form.save()
+            messages.success(request, f"Cost center '{updated_cost_center.name}' updated successfully!")
+            return redirect('category_list')
+    else:
+        form = CostCenterForm(instance=cost_center)
+    
+    return render(request, 'financial/cost_center_form.html', {'form': form, 'cost_center': cost_center})
+
+@login_required
+def cost_center_delete(request, pk):
+    """View to delete a cost center"""
+    cost_center = get_object_or_404(CostCenter, pk=pk)
+    
+    # Verify the cost center belongs to the user's household
+    if cost_center.tax_household.user != request.user:
+        messages.error(request, "You don't have permission to delete this cost center.")
+        return redirect('category_list')
+    
+    if request.method == 'POST':
+        # Get all categories associated with this cost center
+        categories = TransactionCategory.objects.filter(cost_center=cost_center)
+        
+        # Remove cost center association from all categories
+        for category in categories:
+            category.cost_center = None
+            category.save()
+        
+        cost_center_name = cost_center.name
+        cost_center.delete()
+        messages.success(request, f"Cost center '{cost_center_name}' deleted successfully!")
+        return redirect('category_list')
+    
+    return render(request, 'financial/cost_center_confirm_delete.html', {'cost_center': cost_center})
+
+@login_required
+def assign_categories_to_cost_center(request, pk):
+    """View to assign multiple categories to a cost center"""
+    cost_center = get_object_or_404(CostCenter, pk=pk)
+    
+    # Verify the cost center belongs to the user's household
+    if cost_center.tax_household.user != request.user:
+        messages.error(request, "You don't have permission to modify this cost center.")
+        return redirect('category_list')
+    
+    # Get all categories from this household that aren't already assigned to this cost center
+    available_categories = TransactionCategory.objects.filter(
+        tax_household=cost_center.tax_household
+    ).exclude(
+        cost_center=cost_center
+    ).order_by('name')
+    
+    if request.method == 'POST':
+        category_ids = request.POST.getlist('categories')
+        
+        # Assign categories to this cost center
+        if category_ids:
+            assigned_count = 0
+            for category_id in category_ids:
+                try:
+                    category = TransactionCategory.objects.get(
+                        id=category_id,
+                        tax_household=cost_center.tax_household
+                    )
+                    category.cost_center = cost_center
+                    category.save()
+                    assigned_count += 1
+                except TransactionCategory.DoesNotExist:
+                    continue
+            
+            messages.success(request, f"{assigned_count} categories assigned to cost center '{cost_center.name}'")
+        else:
+            messages.info(request, "No categories were selected.")
+        
+        return redirect('category_list')
+    
+    return render(request, 'financial/cost_center_assign_categories.html', {
+        'cost_center': cost_center,
+        'available_categories': available_categories
+    })
+
 # Transaction Category Views
 @login_required
 def category_list(request):
-    """View to list transaction categories"""
+    """View to list transaction categories and cost centers"""
     try:
         household = request.user.tax_household
         
@@ -360,10 +487,44 @@ def category_list(request):
             tax_household=household
         ).order_by('name')
         
+        # Get all cost centers
+        cost_centers = CostCenter.objects.filter(
+            tax_household=household
+        ).order_by('name')
+        
+        # Group categories by cost center
+        categorized = {}
+        uncategorized = []
+        
+        for category in categories:
+            if category.cost_center:
+                if category.cost_center.id not in categorized:
+                    categorized[category.cost_center.id] = {
+                        'cost_center': category.cost_center,
+                        'categories': []
+                    }
+                categorized[category.cost_center.id]['categories'].append(category)
+            else:
+                uncategorized.append(category)
+        
+        # Get statistics for the templates
+        total_categories = categories.count()
+        total_cost_centers = cost_centers.count()
+        categorized_count = total_categories - len(uncategorized)
+        
         return render(request, 'financial/category_list.html', {
             'categories': categories,
+            'uncategorized': uncategorized,
+            'categorized': categorized,
+            'cost_centers': cost_centers,
             'has_household': True,
             'has_bank_accounts': True,
+            'stats': {
+                'total_categories': total_categories,
+                'total_cost_centers': total_cost_centers,
+                'categorized_count': categorized_count,
+                'uncategorized_count': len(uncategorized)
+            }
         })
         
     except TaxHousehold.DoesNotExist:
@@ -394,6 +555,8 @@ def category_create(request):
             return redirect('category_list')
     else:
         form = TransactionCategoryForm()
+        # Only show cost centers belonging to this household
+        form.fields['cost_center'].queryset = CostCenter.objects.filter(tax_household=household)
     
     return render(request, 'financial/category_form.html', {'form': form})
 
@@ -415,6 +578,8 @@ def category_update(request, pk):
             return redirect('category_list')
     else:
         form = TransactionCategoryForm(instance=category)
+        # Only show cost centers belonging to this household
+        form.fields['cost_center'].queryset = CostCenter.objects.filter(tax_household=category.tax_household)
     
     return render(request, 'financial/category_form.html', {'form': form, 'category': category})
 

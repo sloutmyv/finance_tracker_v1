@@ -5,68 +5,15 @@
 
 {% block extra_css %}
 <style>
-    .category-card {
-        transition: transform 0.2s;
-        border-radius: 12px;
-        overflow: hidden;
+    .cost-center-header {
+        border-left: 5px solid;
+        padding-left: 15px;
+        margin-bottom: 15px;
     }
     
-    .category-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    }
-    
-    .category-icon {
-        font-size: 2rem;
-        display: block;
-        margin: 0 auto 0.5rem auto;
-    }
-    
-    .category-header {
-        height: 60px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        padding: 1rem;
-    }
-    
-    .category-actions {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        visibility: hidden;
-        opacity: 0;
-        transition: opacity 0.2s;
-    }
-    
-    .category-card:hover .category-actions {
-        visibility: visible;
-        opacity: 1;
-    }
-    
-    .category-actions .btn {
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        margin-left: 5px;
-    }
-    
-    .category-name {
-        text-align: center;
-        margin-top: 1rem;
-        font-weight: 500;
-        font-size: 1.1rem;
-    }
-    
-    .type-header {
-        border-bottom: 1px solid rgba(0,0,0,0.05);
-        padding-bottom: 0.5rem;
-        margin-bottom: 1.5rem;
+    .category-badge {
+        display: inline-block;
+        margin-bottom: 10px;
     }
 </style>
 {% endblock %}
@@ -74,17 +21,20 @@
 {% block content %}
 <div class="row">
     <div class="col-md-12">
-        <div class="card">
+        <!-- Categories Card -->
+        <div class="card mb-4">
             <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
                 <div>
                     <i class="bi bi-tags me-2 fs-4"></i>
                     <h3 class="mb-0 d-inline">{% translate_json "Transaction Categories" %}</h3>
                 </div>
-                {% if has_bank_accounts %}
-                <a href="{% url 'category_create' %}" class="btn btn-light">
-                    <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add Category" %}
-                </a>
-                {% endif %}
+                <div>
+                    {% if has_bank_accounts %}
+                    <a href="{% url 'category_create' %}" class="btn btn-light">
+                        <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add Category" %}
+                    </a>
+                    {% endif %}
+                </div>
             </div>
             <div class="card-body">
                 <nav aria-label="breadcrumb" class="mb-4">
@@ -117,31 +67,68 @@
                         </div>
                     </div>
                 {% else %}
-                    <p class="lead">{% translate_json "Manage your transaction categories for organizing income and expenses." %}</p>
-                    
-                    <!-- Transaction Categories -->
-                    <h4 class="type-header mt-4">
-                        <i class="bi bi-tags me-2"></i>
-                        {% translate_json "Transaction Categories" %}
-                    </h4>
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <p class="lead">{% translate_json "Manage your transaction categories for organizing income and expenses." %}</p>
+                        </div>
+                    </div>
                     
                     {% if categories %}
-                        <div class="d-flex flex-wrap gap-2 mb-5">
-                            {% for category in categories %}
-                            <div class="position-relative d-inline-flex align-items-center border border-primary rounded-pill py-1 px-3" style="font-size: 0.85rem;">
-                                <i class="bi me-1 text-primary"></i>
-                                <span>{{ category.name }}</span>
-                                <div class="ms-2">
-                                    <a href="{% url 'category_update' category.pk %}" class="text-primary me-1" style="text-decoration: none;">
-                                        <i class="bi bi-pencil-fill"></i>
-                                    </a>
-                                    <a href="{% url 'category_delete' category.pk %}" class="text-danger" style="text-decoration: none;">
-                                        <i class="bi bi-trash-fill"></i>
-                                    </a>
+                        <h4 class="mb-3">{% translate_json "Your Categories" %} ({{ stats.total_categories }})</h4>
+                        
+                        <!-- Categories with Cost Centers -->
+                        {% if categorized %}
+                            {% for cost_center_id, data in categorized.items %}
+                                <div class="cost-center-header mt-4" style="border-left-color: {{ data.cost_center.color }};">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-1">
+                                            <span class="badge rounded-pill p-2 me-2" style="background-color: {{ data.cost_center.color }};">
+                                                <i class="bi bi-diagram-3 text-white"></i>
+                                            </span>
+                                            {{ data.cost_center.name }}
+                                        </h5>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap gap-2 mt-3 mb-4">
+                                        {% for category in data.categories %}
+                                        <div class="position-relative d-inline-flex align-items-center border border-primary rounded-pill py-1 px-3 category-badge" style="font-size: 0.85rem;">
+                                            <i class="bi bi-tag me-1 text-primary"></i>
+                                            <span>{{ category.name }}</span>
+                                            <div class="ms-2">
+                                                <a href="{% url 'category_update' category.pk %}" class="text-primary me-1" style="text-decoration: none;">
+                                                    <i class="bi bi-pencil-fill"></i>
+                                                </a>
+                                                <a href="{% url 'category_delete' category.pk %}" class="text-danger" style="text-decoration: none;">
+                                                    <i class="bi bi-trash-fill"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
-                            </div>
                             {% endfor %}
-                        </div>
+                        {% endif %}
+                        
+                        <!-- Uncategorized Categories -->
+                        {% if uncategorized %}
+                            <h5 class="mt-4 mb-3">{% translate_json "Uncategorized" %} ({{ stats.uncategorized_count }})</h5>
+                            <div class="d-flex flex-wrap gap-2 mb-4">
+                                {% for category in uncategorized %}
+                                <div class="position-relative d-inline-flex align-items-center border border-primary rounded-pill py-1 px-3 category-badge" style="font-size: 0.85rem;">
+                                    <i class="bi bi-tag me-1 text-primary"></i>
+                                    <span>{{ category.name }}</span>
+                                    <div class="ms-2">
+                                        <a href="{% url 'category_update' category.pk %}" class="text-primary me-1" style="text-decoration: none;">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </a>
+                                        <a href="{% url 'category_delete' category.pk %}" class="text-danger" style="text-decoration: none;">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     {% else %}
                         <div class="alert alert-info">
                             <p>{% translate_json "You haven't added any categories yet. Click the button above to add your first category." %}</p>
@@ -156,6 +143,89 @@
                 {% endif %}
             </div>
         </div>
+        
+        <!-- Cost Centers Card -->
+        {% if has_household and has_bank_accounts %}
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+                <div>
+                    <i class="bi bi-diagram-3 me-2 fs-4"></i>
+                    <h3 class="mb-0 d-inline">{% translate_json "Cost Centers" %}</h3>
+                </div>
+                <div>
+                    <a href="{% url 'cost_center_create' %}" class="btn btn-light">
+                        <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add Cost Center" %}
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <p class="lead">{% translate_json "Cost centers help you group related categories together for better organization." %}</p>
+                    </div>
+                </div>
+                
+                {% if cost_centers %}
+                    <div class="row">
+                        {% for cost_center in cost_centers %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card" style="border-left: 5px solid {{ cost_center.color }}; border-radius: 5px;">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 class="card-title mb-0">
+                                            <span class="badge rounded-pill p-2 me-2" style="background-color: {{ cost_center.color }};">
+                                                <i class="bi bi-diagram-3 text-white"></i>
+                                            </span>
+                                            {{ cost_center.name }}
+                                        </h5>
+                                        <div>
+                                            <a href="{% url 'cost_center_update' cost_center.pk %}" class="text-primary me-2" style="text-decoration: none;">
+                                                <i class="bi bi-pencil-fill"></i>
+                                            </a>
+                                            <a href="{% url 'cost_center_delete' cost_center.pk %}" class="text-danger" style="text-decoration: none;">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    
+                                    {% with categories=cost_center.categories.all %}
+                                        {% if categories %}
+                                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                                {% for category in categories %}
+                                                <span class="badge bg-light text-dark border">
+                                                    <i class="bi bi-tag me-1 text-primary"></i>
+                                                    {{ category.name }}
+                                                </span>
+                                                {% endfor %}
+                                            </div>
+                                            <small class="text-muted">{{ categories|length }} {% translate_json "categories" %}</small>
+                                        {% else %}
+                                            <div class="text-muted fst-italic">{% translate_json "No categories assigned yet" %}</div>
+                                        {% endif %}
+                                    {% endwith %}
+                                    
+                                    <div class="mt-3">
+                                        <a href="{% url 'cost_center_assign_categories' cost_center.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-plus-circle me-1"></i> {% translate_json "Assign Categories" %}
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <p>{% translate_json "You haven't added any cost centers yet. Cost centers are optional but can help you organize your categories into groups." %}</p>
+                        <hr>
+                        <a href="{% url 'cost_center_create' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add Cost Center" %}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
