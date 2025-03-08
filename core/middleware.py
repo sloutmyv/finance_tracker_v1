@@ -22,10 +22,9 @@ class LanguageMiddleware:
             print("DEBUG Middleware: Loaded translations in middleware init")
     
     def __call__(self, request):
-        # Ensure translations are loaded
-        if not TRANSLATION_DICT:
-            load_json_translations()
-            print("DEBUG Middleware: Loaded translations in middleware call")
+        # Always reload translations to ensure we have the latest
+        load_json_translations()
+        print(f"DEBUG Middleware: Loaded translations in middleware call. English keys: {len(TRANSLATION_DICT.get('en', {}))}, French keys: {len(TRANSLATION_DICT.get('fr', {}))}")
             
         # Check if the URL contains a language code
         match = self.language_pattern.match(request.path_info)

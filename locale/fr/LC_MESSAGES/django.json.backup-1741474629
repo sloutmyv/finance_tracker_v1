@@ -256,11 +256,5 @@
   "The balance of this account": "Le solde de ce compte",
   "The date when this balance was recorded": "La date à laquelle ce solde a été enregistré",
   "Select 'Family' or a specific member": "Sélectionnez 'Famille' ou un membre spécifique",
-  "Invalid household member selected.": "Membre du foyer sélectionné non valide.",
-  "Duplicate": "Dupliquer",
-  "Duplicate Transaction": "Dupliquer la transaction",
-  "Transaction duplicated successfully.": "Transaction dupliquée avec succès.",
-  "Payment Method": "Moyen de paiement",
-  "Recent Transactions": "Transactions récentes",
-  "View All Transactions": "Voir toutes les transactions"
+  "Invalid household member selected.": "Membre du foyer sélectionné non valide."
 }

@@ -42,4 +42,12 @@ urlpatterns = [
     path('financial/category/create/', views.category_create, name='category_create'),
     path('financial/category/<int:pk>/update/', views.category_update, name='category_update'),
     path('financial/category/<int:pk>/delete/', views.category_delete, name='category_delete'),
+    
+    # Transaction URLs
+    path('transactions/', views.transaction_list, name='transaction_list'),
+    path('transactions/recurring/', views.recurring_transaction_list, name='recurring_transaction_list'),
+    path('transaction/create/', views.transaction_create, name='transaction_create'),
+    path('transaction/<int:pk>/update/', views.transaction_update, name='transaction_update'),
+    path('transaction/<int:pk>/delete/', views.transaction_delete, name='transaction_delete'),
+    path('transaction/<int:pk>/duplicate/', views.transaction_duplicate, name='transaction_duplicate'),
 ]

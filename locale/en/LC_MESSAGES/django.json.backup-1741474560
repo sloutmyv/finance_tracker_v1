@@ -260,11 +260,5 @@
   "The balance of this account": "The balance of this account",
   "The date when this balance was recorded": "The date when this balance was recorded",
   "Select 'Family' or a specific member": "Select 'Family' or a specific member",
-  "Invalid household member selected.": "Invalid household member selected.",
-  "Duplicate": "Duplicate",
-  "Duplicate Transaction": "Duplicate Transaction",
-  "Transaction duplicated successfully.": "Transaction duplicated successfully.",
-  "Payment Method": "Payment Method",
-  "Recent Transactions": "Recent Transactions",
-  "View All Transactions": "View All Transactions"
+  "Invalid household member selected.": "Invalid household member selected."
 }

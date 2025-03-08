@@ -5,136 +5,335 @@
 {% block title %}{% translate_json "Dashboard" %} - {% translate_json "Finance Tracker" %}{% endblock %}
 
 {% block content %}
+<!-- Welcome Card -->
 <div class="row">
     <div class="col-md-12">
-        <div class="card">
+        <div class="card w-100">
             <div class="card-body">
                 <h1 class="card-title">{% translate_json "Hello" %} {{ username }}!</h1>
                 <p class="card-text">{% translate_json "Welcome to your personal Finance Tracker dashboard." %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not setup_complete %}
+<!-- Setup Card: Show Financial Environment Setup when incomplete -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card w-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-gear-fill me-2"></i>
+                    {% translate_json "Financial Environment Setup" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">
+                    {% translate_json "Complete the following steps to set up your financial environment:" %}
+                </p>
                 
-                <div class="card mb-4">
-                    <div class="card-header {% if setup_complete %}bg-success{% else %}bg-primary{% endif %} text-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-{% if setup_complete %}check-circle-fill{% else %}gear-fill{% endif %} me-2"></i>
-                            {% translate_json "Financial Environment Setup" %}
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="lead">
-                            {% if setup_complete %}
-                                {% translate_json "Your financial environment is fully set up! You can now start tracking your finances." %}
+                <div class="list-group mb-4">
+                    <!-- Tax Household Step -->
+                    <div class="list-group-item list-group-item-action d-flex align-items-center">
+                        <div class="me-3">
+                            {% if has_household %}
+                                <i class="bi bi-check-circle-fill text-success fs-4"></i>
                             {% else %}
-                                {% translate_json "Complete the following steps to set up your financial environment:" %}
+                                <span class="badge bg-primary rounded-pill fs-6">1</span>
                             {% endif %}
-                        </p>
-                        
-                        <div class="list-group mb-4">
-                            <!-- Tax Household Step -->
-                            <div class="list-group-item list-group-item-action d-flex align-items-center">
-                                <div class="me-3">
-                                    {% if has_household %}
-                                        <i class="bi bi-check-circle-fill text-success fs-4"></i>
-                                    {% else %}
-                                        <span class="badge bg-primary rounded-pill fs-6">1</span>
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">{% translate_json "Create Tax Household" %}</h5>
-                                        {% if not has_household %}
-                                            <a href="{% url 'household_create' %}" class="btn btn-primary btn-sm">
-                                                {% translate_json "Create Now" %}
-                                            </a>
-                                        {% endif %}
-                                    </div>
-                                    <p class="mb-1">{% translate_json "Set up your tax household with a name." %}</p>
-                                </div>
-                            </div>
-                            
-                            <!-- Household Members Step -->
-                            <div class="list-group-item list-group-item-action d-flex align-items-center {% if not has_household %}disabled{% endif %}">
-                                <div class="me-3">
-                                    {% if has_members %}
-                                        <i class="bi bi-check-circle-fill text-success fs-4"></i>
-                                    {% else %}
-                                        <span class="badge bg-primary rounded-pill fs-6">2</span>
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">{% translate_json "Add Family Members" %}</h5>
-                                        {% if has_household and not has_members %}
-                                            <a href="{% url 'member_create' %}" class="btn btn-primary btn-sm">
-                                                {% translate_json "Add Member" %}
-                                            </a>
-                                        {% endif %}
-                                    </div>
-                                    <p class="mb-1">{% translate_json "Add members to your tax household." %}</p>
-                                </div>
-                            </div>
-                            
-                            <!-- Bank Accounts Step -->
-                            <div class="list-group-item list-group-item-action d-flex align-items-center {% if not has_members %}disabled{% endif %}">
-                                <div class="me-3">
-                                    {% if has_bank_accounts %}
-                                        <i class="bi bi-check-circle-fill text-success fs-4"></i>
-                                    {% else %}
-                                        <span class="badge bg-primary rounded-pill fs-6">3</span>
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">{% translate_json "Create Bank Accounts" %}</h5>
-                                        {% if has_members and not has_bank_accounts %}
-                                            <a href="{% url 'bank_account_create' %}" class="btn btn-primary btn-sm">
-                                                {% translate_json "Add Account" %}
-                                            </a>
-                                        {% endif %}
-                                    </div>
-                                    <p class="mb-1">{% translate_json "Set up bank accounts linked to household members." %}</p>
-                                </div>
-                            </div>
-                            
-                            <!-- Transaction Categories Step -->
-                            <div class="list-group-item list-group-item-action d-flex align-items-center {% if not has_bank_accounts %}disabled{% endif %}">
-                                <div class="me-3">
-                                    {% if has_categories %}
-                                        <i class="bi bi-check-circle-fill text-success fs-4"></i>
-                                    {% else %}
-                                        <span class="badge bg-primary rounded-pill fs-6">4</span>
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">{% translate_json "Create Transaction Categories" %}</h5>
-                                        {% if has_bank_accounts and not has_categories %}
-                                            <a href="{% url 'category_create' %}" class="btn btn-primary btn-sm">
-                                                {% translate_json "Add Category" %}
-                                            </a>
-                                        {% endif %}
-                                    </div>
-                                    <p class="mb-1">{% translate_json "Create categories to organize your income and expenses." %}</p>
-                                </div>
-                            </div>
-                            
                         </div>
-                        
-                        {% if setup_complete %}
-                            <div class="alert alert-success">
-                                <i class="bi bi-check-circle-fill me-2"></i>
-                                <strong>{% translate_json "All set!" %}</strong> {% translate_json "Your financial environment is complete. You can now track your financial transactions." %}
+                        <div class="flex-grow-1">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{% translate_json "Create Tax Household" %}</h5>
+                                {% if not has_household %}
+                                    <a href="{% url 'household_create' %}" class="btn btn-primary btn-sm">
+                                        {% translate_json "Create Now" %}
+                                    </a>
+                                {% endif %}
                             </div>
-                        {% else %}
-                            <div class="alert alert-warning">
-                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                <strong>{% translate_json "Setup required:" %}</strong> {% translate_json "You must complete all steps above before you can start tracking financial transactions." %}
+                            <p class="mb-1">{% translate_json "Set up your tax household with a name." %}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Household Members Step -->
+                    <div class="list-group-item list-group-item-action d-flex align-items-center {% if not has_household %}disabled{% endif %}">
+                        <div class="me-3">
+                            {% if has_members %}
+                                <i class="bi bi-check-circle-fill text-success fs-4"></i>
+                            {% else %}
+                                <span class="badge bg-primary rounded-pill fs-6">2</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{% translate_json "Add Family Members" %}</h5>
+                                {% if has_household and not has_members %}
+                                    <a href="{% url 'member_create' %}" class="btn btn-primary btn-sm">
+                                        {% translate_json "Add Member" %}
+                                    </a>
+                                {% endif %}
                             </div>
-                        {% endif %}
+                            <p class="mb-1">{% translate_json "Add members to your tax household." %}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Bank Accounts Step -->
+                    <div class="list-group-item list-group-item-action d-flex align-items-center {% if not has_members %}disabled{% endif %}">
+                        <div class="me-3">
+                            {% if has_bank_accounts %}
+                                <i class="bi bi-check-circle-fill text-success fs-4"></i>
+                            {% else %}
+                                <span class="badge bg-primary rounded-pill fs-6">3</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{% translate_json "Create Bank Accounts" %}</h5>
+                                {% if has_members and not has_bank_accounts %}
+                                    <a href="{% url 'bank_account_create' %}" class="btn btn-primary btn-sm">
+                                        {% translate_json "Add Account" %}
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <p class="mb-1">{% translate_json "Set up bank accounts linked to household members." %}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Transaction Categories Step -->
+                    <div class="list-group-item list-group-item-action d-flex align-items-center {% if not has_bank_accounts %}disabled{% endif %}">
+                        <div class="me-3">
+                            {% if has_categories %}
+                                <i class="bi bi-check-circle-fill text-success fs-4"></i>
+                            {% else %}
+                                <span class="badge bg-primary rounded-pill fs-6">4</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{% translate_json "Create Transaction Categories" %}</h5>
+                                {% if has_bank_accounts and not has_categories %}
+                                    <a href="{% url 'category_create' %}" class="btn btn-primary btn-sm">
+                                        {% translate_json "Add Category" %}
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <p class="mb-1">{% translate_json "Create categories to organize your income and expenses." %}</p>
+                        </div>
                     </div>
                 </div>
                 
-                {% if has_household %}
-                <h4 class="mt-4 mb-3">{% translate_json "Manage Your Financial Environment" %}</h4>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>{% translate_json "Setup required:" %}</strong> {% translate_json "You must complete all steps above before you can start tracking financial transactions." %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Transaction Card: Show when setup is complete -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card w-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-plus-circle-fill me-2"></i>
+                    {% translate_json "Add Transaction" %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'dashboard' %}">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="{{ transaction_form.date.id_for_label }}" class="form-label">
+                                {% translate_json "Date" %}
+                            </label>
+                            {{ transaction_form.date }}
+                        </div>
+                        <div class="col-md-8">
+                            <label for="{{ transaction_form.description.id_for_label }}" class="form-label">
+                                {% translate_json "Description" %}
+                            </label>
+                            {{ transaction_form.description }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="{{ transaction_form.amount.id_for_label }}" class="form-label">
+                                {% translate_json "Amount" %}
+                            </label>
+                            {{ transaction_form.amount }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ transaction_form.transaction_type.id_for_label }}" class="form-label">
+                                {% translate_json "Type" %}
+                            </label>
+                            {{ transaction_form.transaction_type }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ transaction_form.category.id_for_label }}" class="form-label">
+                                {% translate_json "Category" %}
+                            </label>
+                            {{ transaction_form.category }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="{{ transaction_form.account.id_for_label }}" class="form-label">
+                                {% translate_json "Account" %}
+                            </label>
+                            {{ transaction_form.account }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ transaction_form.payment_method.id_for_label }}" class="form-label">
+                                {% translate_json "Payment Method" %}
+                            </label>
+                            {{ transaction_form.payment_method }}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ transaction_form.recipient.id_for_label }}" class="form-label">
+                                {% translate_json "Recipient" %}
+                            </label>
+                            {{ transaction_form.recipient }}
+                            <small class="form-text text-muted">
+                                {% translate_json "Select 'Family' or a member" %}
+                            </small>
+                            
+                            <!-- Hidden fields for recipient type -->
+                            {{ transaction_form.recipient_type }}
+                            {{ transaction_form.recipient_member }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                {{ transaction_form.is_recurring }}
+                                <label class="form-check-label" for="{{ transaction_form.is_recurring.id_for_label }}">
+                                    {% translate_json "Recurring Transaction" %}
+                                </label>
+                            </div>
+                            <div id="recurrence_options" class="mt-2" style="display: none;">
+                                <label for="{{ transaction_form.recurrence_period.id_for_label }}" class="form-label">
+                                    {% translate_json "Recurrence Period" %}
+                                </label>
+                                {{ transaction_form.recurrence_period }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Empty column for balance -->
+                        </div>
+                    </div>
+                    
+                    <script>
+                        // Function to toggle recurrence options
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const isRecurringCheckbox = document.getElementById('{{ transaction_form.is_recurring.id_for_label }}');
+                            
+                            // Initialize the display based on current checkbox state
+                            toggleRecurrenceOptions(isRecurringCheckbox);
+                            
+                            // Add event listener for checkbox changes
+                            isRecurringCheckbox.addEventListener('change', function() {
+                                toggleRecurrenceOptions(this);
+                            });
+                        });
+                        
+                        function toggleRecurrenceOptions(checkbox) {
+                            const recurrenceOptions = document.getElementById('recurrence_options');
+                            const recurrencePeriod = document.getElementById('{{ transaction_form.recurrence_period.id_for_label }}');
+                            
+                            if (checkbox.checked) {
+                                recurrenceOptions.style.display = 'block';
+                                recurrencePeriod.disabled = false;
+                                
+                                // Set to monthly if no option is selected
+                                if (!recurrencePeriod.value) {
+                                    recurrencePeriod.value = 'monthly';
+                                }
+                            } else {
+                                recurrenceOptions.style.display = 'none';
+                                recurrencePeriod.disabled = true;
+                                recurrencePeriod.value = '';
+                            }
+                        }
+                    </script>
+                    
+                    <div class="d-flex justify-content-center mt-4 mb-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-circle me-1"></i> {% translate_json "Add Transaction" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Transactions Card -->
+{% if recent_transactions %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card w-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history me-2"></i>
+                    {% translate_json "Recent Transactions" %}
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>{% translate_json "Date" %}</th>
+                                <th>{% translate_json "Description" %}</th>
+                                <th>{% translate_json "Category" %}</th>
+                                <th>{% translate_json "Account" %}</th>
+                                <th class="text-end">{% translate_json "Amount" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in recent_transactions %}
+                            <tr>
+                                <td>{{ transaction.date|date:"d/m/y" }}</td>
+                                <td>{{ transaction.description }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ transaction.category.name }}</span>
+                                </td>
+                                <td>{{ transaction.account.name }}</td>
+                                <td class="text-end {% if transaction.transaction_type == 'expense' %}text-danger{% else %}text-success{% endif %}">
+                                    {% if transaction.transaction_type == 'expense' %}-{% endif %}{{ transaction.amount }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer text-end">
+                <a href="{% url 'transaction_list' %}" class="btn btn-sm btn-outline-primary">
+                    {% translate_json "View All Transactions" %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if has_household %}
+<!-- Manage Financial Environment Card -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card w-100">
+            <div class="card-body">
+                <h1 class="card-title">{% translate_json "Manage Your Financial Environment" %}</h1>
                 
                 <div class="row">
                     <div class="col-md-4 mb-3">
@@ -191,9 +390,9 @@
                         </div>
                     </div>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}

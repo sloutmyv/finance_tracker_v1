@@ -215,3 +215,144 @@ class TransactionCategory(models.Model):
         ordering = ['name']
         verbose_name = _("Transaction Category")
         verbose_name_plural = _("Transaction Categories")
+
+class Transaction(models.Model):
+    """Model representing a financial transaction"""
+    
+    TRANSACTION_TYPE_CHOICES = [
+        ('expense', _('Expense')),
+        ('income', _('Income')),
+    ]
+    
+    RECURRENCE_CHOICES = [
+        ('daily', _('Daily')),
+        ('weekly', _('Weekly')),
+        ('monthly', _('Monthly')),
+        ('quarterly', _('Quarterly')),
+        ('annually', _('Annually')),
+    ]
+    
+    tax_household = models.ForeignKey(
+        TaxHousehold,
+        on_delete=models.CASCADE,
+        related_name='transactions',
+        help_text=_("The tax household this transaction belongs to")
+    )
+    date = models.DateField(
+        help_text=_("Date of the transaction")
+    )
+    description = models.CharField(
+        max_length=255,
+        help_text=_("Description of the transaction")
+    )
+    category = models.ForeignKey(
+        TransactionCategory,
+        on_delete=models.PROTECT,
+        related_name='transactions',
+        help_text=_("Category of the transaction")
+    )
+    # Cost center is derived from the category
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text=_("Amount of the transaction")
+    )
+    is_recurring = models.BooleanField(
+        default=False,
+        help_text=_("Whether this is a recurring transaction")
+    )
+    recurrence_period = models.CharField(
+        max_length=10,
+        choices=RECURRENCE_CHOICES,
+        blank=True,
+        default='',
+        help_text=_("Frequency of recurrence for recurring transactions")
+    )
+    account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.PROTECT,
+        related_name='transactions',
+        help_text=_("Account used for the transaction")
+    )
+    RECIPIENT_TYPE_CHOICES = [
+        ('family', _('Family')),
+        ('member', _('Household Member')),
+        ('external', _('External')),
+    ]
+    
+    # The type of recipient (family, specific member, or external)
+    recipient_type = models.CharField(
+        max_length=10,
+        choices=RECIPIENT_TYPE_CHOICES,
+        default='external',
+        help_text=_("Type of recipient")
+    )
+    
+    # Linked to a specific member when recipient_type is 'member'
+    recipient_member = models.ForeignKey(
+        HouseholdMember,
+        on_delete=models.PROTECT,
+        related_name='received_transactions',
+        null=True,
+        blank=True,
+        help_text=_("Specific household member when recipient_type is 'member'")
+    )
+    
+    # Helper method to set recipient from form selection
+    def set_recipient(self, recipient_id):
+        """
+        Sets recipient_type and recipient_member based on form selection.
+        recipient_id: 'family' for family, int for member ID, None/empty for external
+        """
+        if recipient_id == 'family':
+            # Family option
+            self.recipient_type = 'family'
+            self.recipient_member = None
+        elif recipient_id and recipient_id != '':
+            # Try to get a household member
+            try:
+                member_id = int(recipient_id) if isinstance(recipient_id, str) else recipient_id
+                self.recipient_member = HouseholdMember.objects.get(id=member_id)
+                self.recipient_type = 'member'
+            except (ValueError, TypeError, HouseholdMember.DoesNotExist):
+                # Invalid member ID, set to external
+                self.recipient_type = 'external'
+                self.recipient_member = None
+        else:
+            # No selection, default to external
+            self.recipient_type = 'external'
+            self.recipient_member = None
+    payment_method = models.ForeignKey(
+        PaymentMethod,
+        on_delete=models.PROTECT,
+        related_name='transactions',
+        help_text=_("Payment method used for the transaction")
+    )
+    transaction_type = models.CharField(
+        max_length=10,
+        choices=TRANSACTION_TYPE_CHOICES,
+        default='expense',
+        help_text=_("Type of transaction (expense or income)")
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.date} - {self.description} ({self.amount})"
+    
+    def get_cost_center(self):
+        """Return the cost center associated with the transaction's category"""
+        return self.category.cost_center if self.category else None
+    
+    @property
+    def recipient_display(self):
+        """Return a display string for the recipient (family or member name)"""
+        if hasattr(self, 'recipient_type') and self.recipient_type == 'member' and self.recipient_member:
+            return f"{self.recipient_member.first_name} {self.recipient_member.last_name}"
+        # Default to Family for any other case
+        return _("Family")
+    
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name = _("Transaction")
+        verbose_name_plural = _("Transactions")

@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load i18n_extras %}
+
+{% block title %}{% translate_json "Delete Transaction" %} - {% translate_json "Finance Tracker" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-trash me-2"></i>{% translate_json "Delete Transaction" %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    {% translate_json "Are you sure you want to delete this transaction? This action cannot be undone." %}
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">{% translate_json "Transaction Details" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">{% translate_json "Date" %}</dt>
+                            <dd class="col-sm-8">{{ transaction.date|date:"d/m/y" }}</dd>
+                            
+                            <dt class="col-sm-4">{% translate_json "Description" %}</dt>
+                            <dd class="col-sm-8">{{ transaction.description }}</dd>
+                            
+                            <dt class="col-sm-4">{% translate_json "Category" %}</dt>
+                            <dd class="col-sm-8">{{ transaction.category.name }}</dd>
+                            
+                            <dt class="col-sm-4">{% translate_json "Account" %}</dt>
+                            <dd class="col-sm-8">{{ transaction.account.name }}</dd>
+                            
+                            <dt class="col-sm-4">{% translate_json "Amount" %}</dt>
+                            <dd class="col-sm-8" {% if transaction.transaction_type == 'expense' %}class="text-danger"{% else %}class="text-success"{% endif %}>
+                                {% if transaction.transaction_type == 'expense' %}-{% endif %}{{ transaction.amount }}
+                            </dd>
+                            
+                            <dt class="col-sm-4">{% translate_json "Type" %}</dt>
+                            <dd class="col-sm-8">
+                                {% if transaction.transaction_type == 'expense' %}
+                                    <span class="badge bg-danger">{% translate_json "Expense" %}</span>
+                                {% else %}
+                                    <span class="badge bg-success">{% translate_json "Income" %}</span>
+                                {% endif %}
+                            </dd>
+                            
+                            <dt class="col-sm-4">{% translate_json "Recurring" %}</dt>
+                            <dd class="col-sm-8">
+                                {% if transaction.is_recurring %}
+                                    <span class="badge bg-info">{% translate_json "Yes" %}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{% translate_json "No" %}</span>
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'transaction_list' %}" class="btn btn-outline-secondary me-md-2">
+                            <i class="bi bi-arrow-left me-1"></i> {% translate_json "Cancel" %}
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-1"></i> {% translate_json "Delete" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -13,6 +13,24 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+    <style>
+        /* Extra small button style */
+        .btn-xs {
+            padding: 0.1rem 0.3rem;
+            font-size: 0.75rem;
+            line-height: 1.2;
+            border-radius: 0.2rem;
+        }
+        
+        /* Transaction action buttons */
+        .transaction-actions .btn {
+            margin: 0 2px;
+        }
+        
+        .transaction-actions .btn-xs:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -28,6 +46,21 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'dashboard' %}">{% translate_json "Dashboard" %}</a>
                         </li>
+                        <!-- Transactions Dropdown Menu -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="transactionsDropdown" role="button" data-bs-toggle="dropdown">
+                                {% translate_json "Transactions" %}
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'transaction_list' %}">
+                                    <i class="bi bi-list-ul me-2"></i>{% translate_json "All Transactions" %}
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'recurring_transaction_list' %}">
+                                    <i class="bi bi-arrow-repeat me-2"></i>{% translate_json "Recurring Transactions" %}
+                                </a></li>
+                            </ul>
+                        </li>
+                        <!-- Financial Environment Dropdown Menu -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="financialDropdown" role="button" data-bs-toggle="dropdown">
                                 {% translate_json "Financial Environment" %}

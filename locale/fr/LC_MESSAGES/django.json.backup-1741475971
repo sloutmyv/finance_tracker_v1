@@ -259,8 +259,5 @@
   "Invalid household member selected.": "Membre du foyer sélectionné non valide.",
   "Duplicate": "Dupliquer",
   "Duplicate Transaction": "Dupliquer la transaction",
-  "Transaction duplicated successfully.": "Transaction dupliquée avec succès.",
-  "Payment Method": "Moyen de paiement",
-  "Recent Transactions": "Transactions récentes",
-  "View All Transactions": "Voir toutes les transactions"
+  "Transaction duplicated successfully.": "Transaction dupliquée avec succès."
 }

@@ -127,6 +127,11 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
+# Date format settings
+DATE_FORMAT = 'd/m/Y'
+SHORT_DATE_FORMAT = 'd/m/y'
+DATE_INPUT_FORMATS = ['%d/%m/%Y', '%d/%m/%y', '%Y-%m-%d']
+
 # Available languages
 LANGUAGES = [
     ('en', 'English'),

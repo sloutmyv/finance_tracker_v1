@@ -71,5 +71,7 @@ def get_translation(lang, text):
         
     # Return translation if available
     translation = TRANSLATION_DICT[lang][text]
-    print(f"DEBUG Translation: '{text}' → '{translation}' ({lang})")
+    # Only log certain translations to avoid filling logs
+    if len(text) < 30:  # Only log short texts to avoid spamming logs
+        print(f"DEBUG Translation: '{text}' → '{translation}' ({lang})")
     return translation
