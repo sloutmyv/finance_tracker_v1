@@ -107,6 +107,14 @@ class CostCenterForm(forms.ModelForm):
         ('#7ba59a', _('Teal')),
         ('#5b78a7', _('Navy')),
         ('#f2d184', _('Yellow')),
+        ('#e36a6a', _('Red')),
+        ('#9a7dd2', _('Purple')),
+        ('#f39c5e', _('Orange')),
+        ('#63cdd7', _('Turquoise')),
+        ('#b5d38f', _('Lime')),
+        ('#de9ed3', _('Lilac')),
+        ('#737373', _('Dark Grey')),
+        ('#e5a663', _('Gold')),
     ]
     
     color = forms.ChoiceField(

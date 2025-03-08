@@ -198,6 +198,23 @@
   "categories":"categories",
   "Are you sure you want to delete this category?":"Are you sure you want to delete this category?",
   "This action cannot be undone. Any transactions using this category will need to be recategorized.":"This action cannot be undone. Any transactions using this category will need to be recategorized.",
-  "Delete Category":"Delete Category"
-
+  "Delete Category":"Delete Category",
+  "Blue": "Blue",
+  "Green": "Green",
+  "Pink": "Pink",
+  "Brown": "Brown",
+  "Beige": "Beige",
+  "Grey": "Grey",
+  "Mauve": "Mauve",
+  "Teal": "Teal",
+  "Navy": "Navy",
+  "Yellow": "Yellow",
+  "Red": "Red",
+  "Purple": "Purple",
+  "Orange": "Orange",
+  "Turquoise": "Turquoise",
+  "Lime": "Lime",
+  "Lilac": "Lilac",
+  "Dark Grey": "Dark Grey",
+  "Gold": "Gold"
 }

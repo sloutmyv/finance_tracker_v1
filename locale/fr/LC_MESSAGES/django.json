@@ -133,6 +133,9 @@
   "CFP Franc (₣)": "Franc CFP (₣)",
   "Chinese Yuan (¥)": "Yuan chinois (¥)",
   
+
+  "Create Transaction Categories":"Créer des catégories relatives aux transactions",
+  "Create categories to organize your income and expenses.":"Créer des catégories pour organiser vos revenues et vos dépenses.",
   "Categories": "Catégories",
   "Category": "Catégorie",
   "Category Name": "Nom de la catégorie",
@@ -191,5 +194,23 @@
   "Delete Bank Account": "Supprimer le compte bancaire",
   "Are you sure you want to delete this bank account?": "Êtes-vous sûr de vouloir supprimer ce compte bancaire?", 
   "This action cannot be undone. All account information will be permanently removed.": "Cette action est irréversible. Toutes les informations du compte seront définitivement supprimées.",
-  "Delete Account": "Supprimer le compte"
+  "Delete Account": "Supprimer le compte",
+  "Blue": "Bleu",
+  "Green": "Vert",
+  "Pink": "Rose",
+  "Brown": "Marron",
+  "Beige": "Beige",
+  "Grey": "Gris",
+  "Mauve": "Mauve",
+  "Teal": "Bleu Canard",
+  "Navy": "Bleu Marine",
+  "Yellow": "Jaune",
+  "Red": "Rouge",
+  "Purple": "Violet",
+  "Orange": "Orange",
+  "Turquoise": "Turquoise",
+  "Lime": "Vert Lime",
+  "Lilac": "Lilas",
+  "Dark Grey": "Gris Foncé",
+  "Gold": "Or"
 }

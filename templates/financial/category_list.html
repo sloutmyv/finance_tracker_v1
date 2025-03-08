@@ -79,13 +79,11 @@
                         <!-- Categories with Cost Centers -->
                         {% if categorized %}
                             {% for cost_center_id, data in categorized.items %}
-                                <div class="cost-center-header mt-4" style="border-left-color: {{ data.cost_center.color }};">
+                                <div class="cost-center-header mt-4" style="border-left: 8px solid {{ data.cost_center.color }};">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <h5 class="mb-1">
-                                            <span class="badge rounded-pill p-2 me-2" style="background-color: {{ data.cost_center.color }};">
-                                                <i class="bi bi-diagram-3 text-white"></i>
-                                            </span>
-                                            {{ data.cost_center.name }}
+                                            {{ data.cost_center.name }} 
+                                            <small class="text-muted ms-2">({{ data.categories|length }} {% translate_json "categories" %})</small>
                                         </h5>
                                     </div>
 
@@ -169,13 +167,10 @@
                     <div class="row">
                         {% for cost_center in cost_centers %}
                         <div class="col-md-6 mb-4">
-                            <div class="card" style="border-left: 5px solid {{ cost_center.color }}; border-radius: 5px;">
+                            <div class="card" style="border-left: 8px solid {{ cost_center.color }}; border-radius: 5px;">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
                                         <h5 class="card-title mb-0">
-                                            <span class="badge rounded-pill p-2 me-2" style="background-color: {{ cost_center.color }};">
-                                                <i class="bi bi-diagram-3 text-white"></i>
-                                            </span>
                                             {{ cost_center.name }}
                                         </h5>
                                         <div>
@@ -189,6 +184,12 @@
                                     </div>
                                     
                                     {% with categories=cost_center.categories.all %}
+                                        <div class="mb-2">
+                                            <small class="text-muted mb-2 d-block">
+                                                {{ categories|length }} {% translate_json "categories" %}
+                                            </small>
+                                        </div>
+                                        
                                         {% if categories %}
                                             <div class="d-flex flex-wrap gap-2 mb-2">
                                                 {% for category in categories %}
@@ -198,14 +199,13 @@
                                                 </span>
                                                 {% endfor %}
                                             </div>
-                                            <small class="text-muted">{{ categories|length }} {% translate_json "categories" %}</small>
                                         {% else %}
-                                            <div class="text-muted fst-italic">{% translate_json "No categories assigned yet" %}</div>
+                                            <div class="text-muted fst-italic mb-3">{% translate_json "No categories assigned yet" %}</div>
                                         {% endif %}
                                     {% endwith %}
                                     
-                                    <div class="mt-3">
-                                        <a href="{% url 'cost_center_assign_categories' cost_center.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <div class="mt-2 text-end">
+                                        <a href="{% url 'cost_center_assign_categories' cost_center.pk %}" class="btn btn-sm btn-link text-primary p-0">
                                             <i class="bi bi-plus-circle me-1"></i> {% translate_json "Assign Categories" %}
                                         </a>
                                     </div>
