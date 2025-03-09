@@ -99,6 +99,18 @@
                                 </li>
                             </ul>
                         </li>
+                        
+                        <!-- Reporting & Analytics Dropdown Menu -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="analyticsDropdown" role="button" data-bs-toggle="dropdown">
+                                {% translate_json "Reporting & Analytics" %}
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'balance_evolution' %}">
+                                    <i class="bi bi-graph-up me-2"></i>{% translate_json "Balance Evolution" %}
+                                </a></li>
+                            </ul>
+                        </li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">

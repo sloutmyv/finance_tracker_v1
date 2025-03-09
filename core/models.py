@@ -87,35 +87,83 @@ class BankAccount(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def save(self, *args, **kwargs):
-        # Generate reference if this is a new account (no pk) or reference is empty
-        if not self.pk or not self.reference:
-            # Need to save first if it's a new account to establish M2M relationships
-            super().save(*args, **kwargs)
-            
-            # Now generate the reference
+        """
+        Custom save method to ensure reference code is generated after M2M relationships are established.
+        This is critical for creating correct owner code (CC vs. member trigram).
+        """
+        # Flag to track if this is a new account
+        is_new = not self.pk
+        
+        # For existing accounts with no reference
+        if not is_new and not self.reference:
             self.reference = self._generate_reference()
             
-            # Call save again to update the reference field
-            return super().save(update_fields=['reference'] if self.pk else None)
-        return super().save(*args, **kwargs)
+        # Call the standard save method
+        result = super().save(*args, **kwargs)
+        
+        # For new accounts, we need to call save twice
+        # First save (above) ensures the pk exists so M2M relationships can be established
+        # After initial save, in the view we will add members
+        # The reference will be updated in a later save call
+        
+        return result
+        
+    def update_reference(self):
+        """
+        Called after members have been added to generate/update the reference.
+        This should be called explicitly after adding members to a new account.
+        """
+        self.reference = self._generate_reference()
+        # Save only the reference field to avoid unnecessary database operations
+        self.save(update_fields=['reference'])
     
     def _generate_reference(self):
+        """
+        Generate a reference code with format:
+        - First part: Member trigram if single owner, 'CC' for multiple owners
+        - Second part: Bank name (first 3 letters)
+        - Third part: Account type code
+        
+        Example: SCL_BNP_LIVA or CC_BNP_CC
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Get all members of this account
-        member_trigrams = [member.trigram for member in self.members.all()]
+        members = self.members.all()
+        member_count = members.count()
+        logger.debug(f"Bank account has {member_count} members")
         
-        # Use the owner's trigram if there's only one, otherwise use 'CC'
-        owner_code = member_trigrams[0] if len(member_trigrams) == 1 else 'CC'
+        # First part: Use the single member's trigram if there's only one owner, otherwise use 'CC'
+        if member_count == 1:
+            single_member = members.first()
+            owner_code = single_member.trigram
+            logger.debug(f"Using single member trigram: {owner_code}")
+        else:
+            owner_code = 'CC'  # CC = Compte Commun (Joint Account)
+            logger.debug(f"Using CC code for multiple members: {member_count}")
         
-        # Get account type code
-        type_code = self.account_type.short_designation if self.account_type else 'UNK'
-        
-        # Generate bank code - take the first 3 characters of the bank name
-        bank_code = ''.join([c for c in self.bank_name.upper() if c.isalpha()])[:3]
+        # Second part: Generate bank code - first 3 letters of the bank name
+        bank_name_upper = self.bank_name.upper()
+        # Extract only alphabetic characters
+        alpha_chars = ''.join([c for c in bank_name_upper if c.isalpha()])
+        # Take first 3 letters
+        bank_code = alpha_chars[:3]
         if not bank_code:
             bank_code = 'BNK'  # Default if bank name doesn't contain letters
+        logger.debug(f"Bank code generated: {bank_code} from name: {self.bank_name}")
         
-        # Combine the parts
+        # Third part: Account type code
+        if self.account_type:
+            type_code = self.account_type.short_designation
+            logger.debug(f"Account type code: {type_code} from type: {self.account_type.designation}")
+        else:
+            type_code = 'UNK'
+            logger.debug("No account type set, using UNK")
+        
+        # Combine the parts: [OWNER]_[BANK]_[TYPE]
         reference = f"{owner_code}_{bank_code}_{type_code}"
+        logger.debug(f"Generated reference: {reference}")
         
         return reference
     

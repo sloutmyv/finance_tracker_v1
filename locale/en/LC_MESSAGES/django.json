@@ -2,6 +2,8 @@
   "Finance Tracker": "Finance Tracker",
   "Dashboard": "Dashboard",
   "Financial Environment": "Financial Environment",
+  "Reporting & Analytics": "Reporting & Analytics",
+  "Balance Evolution": "Balance Evolution",
   "Family Settings": "Family Settings",
   "Bank Accounts": "Bank Accounts",
   "Change Password": "Change Password",
@@ -287,5 +289,14 @@
   "Freq": "Freq",
   "Start": "Start",
   "End": "End",
-  "Recurring transaction has expired": "Recurring transaction has expired"
+  "Recurring transaction has expired": "Recurring transaction has expired",
+  "View how your account balance has changed over time based on transactions": "View how your account balance has changed over time based on transactions",
+  "Apply": "Apply",
+  "Account Selection": "Account Selection",
+  "Show all accounts": "Show all accounts",
+  "Overlay graphs": "Overlay graphs",
+  "This account has": "This account has",
+  "transaction": "transaction",
+  "transactions": "transactions",
+  "that will also be deleted!": "that will also be deleted!"
 }

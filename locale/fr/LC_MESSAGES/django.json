@@ -2,6 +2,8 @@
   "Finance Tracker": "Finance Tracker",
   "Dashboard": "Tableau de bord",
   "Financial Environment": "Environnement financier",
+  "Reporting & Analytics": "Rapports & Analyses",
+  "Balance Evolution": "Évolution du solde",
   "Family Settings": "Paramètres familiaux",
   "Bank Accounts": "Comptes bancaires",
   "Change Password": "Changer le mot de passe",
@@ -283,5 +285,14 @@
   "Freq": "Fréq",
   "Start": "Début",
   "End": "Fin",
-  "Recurring transaction has expired": "La transaction récurrente a expiré"
+  "Recurring transaction has expired": "La transaction récurrente a expiré",
+  "View how your account balance has changed over time based on transactions": "Visualisez l'évolution du solde de votre compte dans le temps en fonction des transactions",
+  "Apply": "Appliquer",
+  "Account Selection": "Sélection des comptes",
+  "Show all accounts": "Afficher tous les comptes",
+  "Overlay graphs": "Superposer les graphiques",
+  "This account has": "Ce compte possède",
+  "transaction": "transaction",
+  "transactions": "transactions",
+  "that will also be deleted!": "qui seront également supprimées !"
 }

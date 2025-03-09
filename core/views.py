@@ -3,10 +3,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.db import transaction
 from django.utils.translation import get_language, gettext_lazy as _
 from django.utils import timezone
+from datetime import datetime, timedelta
+import json
 
 from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, TransactionCategory, CostCenter, Transaction, PaymentMethod
 from .forms import TaxHouseholdForm, HouseholdMemberForm, HouseholdMemberFormSet, BankAccountForm, TransactionCategoryForm, CostCenterForm, TransactionForm
@@ -210,6 +212,242 @@ def logout_view(request):
     messages.success(request, "You have been successfully logged out.")
     return redirect('login')
 
+# Reporting & Analytics Views
+@login_required
+def balance_evolution(request):
+    """View for displaying bank account balance evolution chart"""
+    
+    # Get user's household
+    try:
+        household = request.user.tax_household
+    except TaxHousehold.DoesNotExist:
+        messages.error(request, _("You need to set up a household first"))
+        return redirect('financial_settings')
+    
+    # Get members and their bank accounts
+    members = household.members.all()
+    if not members.exists():
+        messages.error(request, _("You need to add members to your household first"))
+        return redirect('household_members')
+    
+    # Get all bank accounts linked to household members
+    bank_accounts = BankAccount.objects.filter(members__in=members).distinct()
+    if not bank_accounts.exists():
+        messages.error(request, _("You need to create at least one bank account first"))
+        return redirect('bank_account_list')
+    
+    # Default date range (last 30 days)
+    end_date = timezone.now().date()
+    start_date = end_date - timedelta(days=30)
+    
+    # Process any filter parameters
+    selected_account_id = request.GET.get('account', None)
+    custom_start_date = request.GET.get('start_date', None)
+    custom_end_date = request.GET.get('end_date', None)
+    
+    # Process custom date range if provided
+    if custom_start_date and custom_end_date:
+        try:
+            start_date = datetime.strptime(custom_start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(custom_end_date, '%Y-%m-%d').date()
+        except ValueError:
+            # If invalid dates, use default
+            messages.warning(request, _("Invalid date format. Using default date range."))
+    
+    # Handle AJAX request for chart data
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        account_id = request.GET.get('account_id')
+        
+        if not account_id:
+            return JsonResponse({'error': 'Account ID is required'}, status=400)
+        
+        try:
+            account = bank_accounts.get(id=account_id)
+        except BankAccount.DoesNotExist:
+            return JsonResponse({'error': 'Account not found'}, status=404)
+        
+        # Get balance evolution data
+        balance_data = calculate_balance_evolution(account, start_date, end_date)
+        
+        return JsonResponse(balance_data)
+    
+    # For regular page request, render the template
+    context = {
+        'bank_accounts': bank_accounts,
+        'selected_account_id': selected_account_id or (bank_accounts.first().id if bank_accounts.exists() else None),
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+    }
+    
+    return render(request, 'reporting/balance_evolution.html', context)
+
+def calculate_balance_evolution(account, start_date, end_date):
+    """
+    Calculate balance evolution for a specific account over a time period.
+    Returns data formatted for a chart.
+    """
+    # Import Decimal for consistent financial calculations
+    from decimal import Decimal
+    
+    # Get the initial balance (starting point)
+    initial_balance = account.balance
+    initial_balance_date = account.balance_date
+    
+    # Ensure we're working with Decimal from the start
+    if not isinstance(initial_balance, Decimal):
+        initial_balance = Decimal(str(initial_balance))
+    
+    # Get all stored transactions for this account
+    base_transactions = Transaction.objects.filter(
+        account=account
+    ).order_by('date')
+    
+    # Get recurring transactions that need to be included
+    recurring_transactions = Transaction.objects.filter(
+        account=account,
+        is_recurring=True
+    )
+    
+    # Initialize data structures
+    dates = []
+    balances = []
+    
+    # Start with the recorded balance
+    current_balance = initial_balance
+    
+    # Determine the chart start date (use requested start_date even if it's before the balance_date)
+    chart_start_date = start_date
+    
+    # Generate recurring transaction instances for the entire period
+    # This ensures we capture all instances that might affect the balance
+    all_recurring_instances = []
+    for txn in recurring_transactions:
+        instances = txn.generate_recurring_instances(current_date=end_date)
+        all_recurring_instances.extend(instances)
+    
+    # Create a combined list of all transactions (stored + recurring instances)
+    all_transactions = list(base_transactions)
+    
+    # Add recurring instances, ensuring we don't double count
+    for instance in all_recurring_instances:
+        # Only include instances that aren't already in the base transactions
+        # (the first instance is often the same as the base transaction)
+        is_unique = True
+        instance_date = instance.date
+        instance_amount = instance.amount
+        
+        for base_txn in base_transactions:
+            if (base_txn.date == instance_date and 
+                base_txn.amount == instance_amount and
+                base_txn.transaction_type == instance.transaction_type):
+                is_unique = False
+                break
+                
+        if is_unique:
+            all_transactions.append(instance)
+    
+    # Sort transactions by date
+    all_transactions.sort(key=lambda x: x.date)
+    
+    # If we need to show balance before the recorded balance date, we need to work backwards
+    if start_date < initial_balance_date:
+        # Filter transactions that occurred before the initial balance date but after start date
+        backward_transactions = [tx for tx in all_transactions 
+                                if tx.date < initial_balance_date and tx.date >= start_date]
+        # Sort in reverse order
+        backward_transactions.sort(key=lambda x: x.date, reverse=True)
+        
+        # Adjust the current balance by reversing the effect of earlier transactions
+        for txn in backward_transactions:
+            # Ensure amount is a Decimal
+            amount = txn.amount
+            if not isinstance(amount, Decimal):
+                amount = Decimal(str(amount))
+                
+            if txn.transaction_type == 'income':
+                current_balance -= amount  # Subtract income that hasn't happened yet (from past perspective)
+            else:  # expense
+                current_balance += amount  # Add back expenses that haven't happened yet (from past perspective)
+                
+        # We've now calculated what the balance would have been at our start date
+    else:
+        # If start date is after initial balance date, adjust balance forward to start date
+        forward_transactions = [tx for tx in all_transactions 
+                               if tx.date >= initial_balance_date and tx.date < start_date]
+        
+        for txn in forward_transactions:
+            # Ensure amount is a Decimal
+            amount = txn.amount
+            if not isinstance(amount, Decimal):
+                amount = Decimal(str(amount))
+                
+            if txn.transaction_type == 'income':
+                current_balance += amount
+            else:  # expense
+                current_balance -= amount
+    
+    # Generate dates between start and end
+    current_date = chart_start_date
+    day_delta = timedelta(days=1)
+    
+    # Add initial balance point
+    dates.append(chart_start_date.strftime('%Y-%m-%d'))
+    balances.append(float(current_balance))
+    
+    # Create a dictionary to track balance changes by date for more efficient lookup
+    balance_changes_by_date = {}
+    
+    # Ensure current_balance is a Decimal
+    from decimal import Decimal
+    if not isinstance(current_balance, Decimal):
+        current_balance = Decimal(str(current_balance))
+    
+    # Group transactions by date
+    for txn in all_transactions:
+        if start_date <= txn.date <= end_date:
+            date_str = txn.date.strftime('%Y-%m-%d')
+            if date_str not in balance_changes_by_date:
+                balance_changes_by_date[date_str] = Decimal('0.0')
+                
+            # Add or subtract based on transaction type
+            # Make sure we're working with Decimal objects consistently
+            amount = txn.amount
+            if not isinstance(amount, Decimal):
+                amount = Decimal(str(amount))
+                
+            if txn.transaction_type == 'income':
+                balance_changes_by_date[date_str] += amount
+            else:  # expense
+                balance_changes_by_date[date_str] -= amount
+    
+    # Process each date in the range
+    while current_date <= end_date:
+        date_str = current_date.strftime('%Y-%m-%d')
+        
+        # If we have transactions on this date, update the balance
+        if date_str in balance_changes_by_date:
+            current_balance += balance_changes_by_date[date_str]
+            
+            # Add a data point for this date
+            dates.append(date_str)
+            balances.append(float(current_balance))
+        
+        # Move to next day
+        current_date += day_delta
+    
+    # If the last date isn't included yet (no transactions on that day), add it
+    if not dates or dates[-1] != end_date.strftime('%Y-%m-%d'):
+        dates.append(end_date.strftime('%Y-%m-%d'))
+        balances.append(float(current_balance))
+    
+    # Return properly formatted data for the chart
+    return {
+        'dates': dates,
+        'balances': balances,
+        'account_name': account.name,
+        'currency': account.currency
+    }
+
 # Financial Environment Views
 @login_required
 def financial_settings(request):
@@ -408,8 +646,14 @@ def bank_account_create(request):
         form.fields['members'].queryset = household.members.all()
         
         if form.is_valid():
+            # Save the account first to get the primary key
             account = form.save()
-            messages.success(request, f"Bank account '{account.name}' created successfully!")
+            
+            # After saving the form (which handles the M2M relationships),
+            # explicitly update the reference code to ensure it's based on the actual members
+            account.update_reference()
+            
+            messages.success(request, f"Bank account '{account.name}' created successfully with reference {account.reference}!")
             return redirect('bank_account_list')
     else:
         form = BankAccountForm()
@@ -451,8 +695,14 @@ def bank_account_update(request, pk):
         form.fields['members'].queryset = household.members.all()
         
         if form.is_valid():
+            # Save the account with the form data
             updated_account = form.save()
-            messages.success(request, f"Bank account '{updated_account.name}' updated successfully!")
+            
+            # After saving the form (which handles the M2M relationships),
+            # explicitly update the reference code to ensure it reflects the current members
+            updated_account.update_reference()
+            
+            messages.success(request, f"Bank account '{updated_account.name}' updated successfully with reference {updated_account.reference}!")
             return redirect('bank_account_list')
     else:
         form = BankAccountForm(instance=account)
@@ -463,7 +713,7 @@ def bank_account_update(request, pk):
 
 @login_required
 def bank_account_delete(request, pk):
-    """View to delete a bank account"""
+    """View to delete a bank account and all associated transactions"""
     account = get_object_or_404(BankAccount, pk=pk)
     
     # Verify the account belongs to a member in the user's household
@@ -471,13 +721,33 @@ def bank_account_delete(request, pk):
         messages.error(request, "You don't have permission to delete this bank account.")
         return redirect('bank_account_list')
     
+    # Count related transactions
+    transactions_count = Transaction.objects.filter(account=account).count()
+    
     if request.method == 'POST':
         account_name = account.name
-        account.delete()
-        messages.success(request, f"Bank account '{account_name}' deleted successfully!")
+        
+        # Use transaction to ensure data integrity
+        with transaction.atomic():
+            # First delete all related transactions
+            deleted_transactions = Transaction.objects.filter(account=account).delete()
+            
+            # Now delete the account
+            account.delete()
+            
+        # Show success message with transaction count
+        if transactions_count > 0:
+            messages.success(request, f"Bank account '{account_name}' and {transactions_count} related transactions were deleted successfully!")
+        else:
+            messages.success(request, f"Bank account '{account_name}' deleted successfully!")
+        
         return redirect('bank_account_list')
     
-    return render(request, 'financial/bank_account_confirm_delete.html', {'account': account})
+    # Pass transaction count to the template
+    return render(request, 'financial/bank_account_confirm_delete.html', {
+        'account': account,
+        'transactions_count': transactions_count
+    })
 
 # Cost Center Views
 # Redirect to category list since we're now showing cost centers there

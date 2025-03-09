@@ -17,6 +17,9 @@ urlpatterns = [
         template_name='auth/password_change_done.html'
     ), name='password_change_done'),
     
+    # Reporting & Analytics URLs
+    path('reporting/balance-evolution/', views.balance_evolution, name='balance_evolution'),
+    
     # Financial Environment URLs
     path('financial/', views.financial_settings, name='financial_settings'),
     path('financial/household/create/', views.household_create, name='household_create'),
