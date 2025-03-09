@@ -294,5 +294,14 @@
   "This account has": "Ce compte possède",
   "transaction": "transaction",
   "transactions": "transactions",
-  "that will also be deleted!": "qui seront également supprimées !"
+  "that will also be deleted!": "qui seront également supprimées !",
+  "Transfer between accounts": "Virement entre comptes",
+  "Destination Account": "Compte de destination",
+  "Source Account": "Compte source",
+  "This will create two transactions: a withdrawal from the source account and a deposit to the destination account.": "Cela créera deux transactions : un retrait du compte source et un dépôt sur le compte destination.",
+  "Please select a destination account for the transfer.": "Veuillez sélectionner un compte de destination pour le virement.",
+  "Source and destination accounts must be different for a transfer.": "Les comptes source et destination doivent être différents pour un virement.",
+  "Transfer transaction created successfully.": "Transaction de virement créée avec succès.",
+  "Error creating transfer transaction.": "Erreur lors de la création de la transaction de virement.",
+  "Bank Transfer": "Virement bancaire"
 }

@@ -172,11 +172,55 @@ class TransactionCategoryForm(forms.ModelForm):
         }
 
 class TransactionForm(forms.ModelForm):
+    # Add additional fields for transfers that are not in the model
+    is_transfer = forms.BooleanField(
+        required=False,
+        label=_("Transfer between accounts"),
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'onchange': 'toggleTransferOptions(this);'})
+    )
+    
+    destination_account = forms.ModelChoiceField(
+        queryset=BankAccount.objects.none(),  # Will be populated in __init__
+        required=False,
+        label=_("Destination Account"),
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
     def __init__(self, *args, household=None, **kwargs):
+        # Check if this is a transfer form submission
+        is_transfer = False
+        if args and len(args) > 0 and isinstance(args[0], dict) and args[0].get('is_transfer') == 'on':
+            is_transfer = True
+            data = args[0].copy()
+            
+            # Pre-fill required fields that might be disabled in the UI for transfers
+            if is_transfer and 'transaction_type' not in data:
+                data['transaction_type'] = 'expense'
+            
+            # Set recipient to family for transfers
+            if is_transfer and 'recipient' not in data:
+                data['recipient'] = 'family'
+            
+            # Replace args with modified data
+            args = (data,) + args[1:]
+        
         instance = kwargs.get('instance')
         super().__init__(*args, **kwargs)
         
         self.household = household
+        
+        # Special handling for transfers - if this is a transfer submission,
+        # make certain fields not required since they'll be auto-filled
+        if args and len(args) > 0 and isinstance(args[0], dict) and args[0].get('is_transfer') == 'on':
+            # Make these fields not required for transfers
+            if 'transaction_type' in self.fields:
+                self.fields['transaction_type'].required = False
+            if 'category' in self.fields:
+                self.fields['category'].required = False
+            if 'payment_method' in self.fields:
+                self.fields['payment_method'].required = False
+            if 'recipient' in self.fields:
+                self.fields['recipient'].required = False
         
         if household:
             # Filter categories by the current household
@@ -184,7 +228,11 @@ class TransactionForm(forms.ModelForm):
             
             # Filter bank accounts by the household members
             members = HouseholdMember.objects.filter(tax_household=household)
-            self.fields['account'].queryset = BankAccount.objects.filter(members__in=members).distinct()
+            bank_accounts = BankAccount.objects.filter(members__in=members).distinct()
+            
+            # Set account queryset for both fields
+            self.fields['account'].queryset = bank_accounts
+            self.fields['destination_account'].queryset = bank_accounts
             
             # Make choices for the recipient selection
             member_choices = [(str(member.id), f"{member.first_name} {member.last_name}") for member in members]
@@ -197,6 +245,11 @@ class TransactionForm(forms.ModelForm):
                 required=True,  # Make it required since we removed the empty option
                 widget=forms.Select(attrs={'class': 'form-control'})
             )
+            
+            # Check if transfer option should be available (need at least 2 accounts)
+            if bank_accounts.count() < 2:
+                self.fields['is_transfer'].widget = forms.HiddenInput()
+                self.fields['destination_account'].widget = forms.HiddenInput()
             
             # Set initial value for recipient field based on instance
             if instance:
@@ -283,30 +336,204 @@ class TransactionForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         
+        # Debug output - print all form data
+        print("=== TRANSFER FORM DEBUG ===")
+        print("Raw POST data:")
+        if hasattr(self, 'data'):
+            for key, value in self.data.items():
+                print(f"  {key}: {value}")
+        print("Cleaned data before processing:")
+        for key, value in cleaned_data.items():
+            print(f"  {key}: {value}")
+        
         # Make sure transaction date is preserved
         if self.instance and self.instance.pk and self.instance.date:
             # If no date was provided in the form or if it was somehow reset
             if not cleaned_data.get('date'):
                 cleaned_data['date'] = self.instance.date
         
-        recipient_choice = cleaned_data.get('recipient')
+        # Check if this is a transfer
+        is_transfer = cleaned_data.get('is_transfer')
         
-        # Process recipient selection (now only Family or a specific member)
-        if recipient_choice == 'family':
-            # Family option selected
+        # Handle different possible values for is_transfer field
+        if is_transfer in [True, 'True', 'true', 'on', '1', 1]:
+            is_transfer = True
+            cleaned_data['is_transfer'] = True
+        else:
+            is_transfer = False
+            cleaned_data['is_transfer'] = False
+            
+        # Also check raw data for transfers
+        raw_is_transfer = self.data.get('is_transfer') in ['on', 'true', 'True', '1', 1, True]
+        if raw_is_transfer and not is_transfer:
+            # Force is_transfer to True in cleaned_data if it's 'on' in the raw data
+            is_transfer = True
+            cleaned_data['is_transfer'] = True
+            
+        if is_transfer:
+            # For transfers, validate that source and destination accounts are different
+            source_account = cleaned_data.get('account')
+            destination_account = cleaned_data.get('destination_account')
+            
+            if not destination_account:
+                raise forms.ValidationError(_("Please select a destination account for the transfer."))
+                
+            if source_account and destination_account and source_account.id == destination_account.id:
+                raise forms.ValidationError(_("Source and destination accounts must be different for a transfer."))
+                
+            # For transfers, set transaction type to expense (we'll create the matching income transaction separately)
+            cleaned_data['transaction_type'] = 'expense'
+            
+            # For transfers, try to find or create a Transfer category
+            if self.household:
+                try:
+                    # First, try to find or create a Transfer cost center
+                    transfer_cost_center = None
+                    try:
+                        # Check if Transfer cost center already exists
+                        transfer_cost_centers = CostCenter.objects.filter(
+                            tax_household=self.household,
+                            name="Transfer"
+                        )
+                        
+                        if transfer_cost_centers.exists():
+                            # Use existing Transfer cost center
+                            transfer_cost_center = transfer_cost_centers.first()
+                        else:
+                            # Create a new Transfer cost center with a neutral gray color
+                            transfer_cost_center = CostCenter.objects.create(
+                                tax_household=self.household,
+                                name="Transfer",
+                                color="#8a92a9"  # Using the gray from color_choices
+                            )
+                            print(f"DEBUG - Created new Transfer cost center: {transfer_cost_center}")
+                    except Exception as e:
+                        print(f"Warning: Could not create Transfer cost center: {e}")
+                    
+                    # Now find or create the Transfer category linked to the cost center
+                    transfer_categories = TransactionCategory.objects.filter(
+                        tax_household=self.household,
+                        name="Transfer"
+                    )
+                    
+                    if transfer_categories.exists():
+                        # Use existing Transfer category
+                        transfer_category = transfer_categories.first()
+                        # Ensure it's linked to the Transfer cost center if we have one
+                        if transfer_cost_center and transfer_category.cost_center != transfer_cost_center:
+                            transfer_category.cost_center = transfer_cost_center
+                            transfer_category.save()
+                    else:
+                        # Create a new Transfer category
+                        transfer_category = TransactionCategory.objects.create(
+                            tax_household=self.household,
+                            name="Transfer",
+                            cost_center=transfer_cost_center
+                        )
+                    
+                    # Set the category in cleaned data
+                    cleaned_data['category'] = transfer_category
+                    print(f"DEBUG - Set category to: {transfer_category}")
+                except Exception as e:
+                    print(f"Error with Transfer category: {e}")
+                    # If we can't create/get the category, try using any existing category
+                    categories = TransactionCategory.objects.filter(tax_household=self.household)
+                    if categories.exists():
+                        cleaned_data['category'] = categories.first()
+                        print(f"DEBUG - Used fallback category: {cleaned_data['category']}")
+                    else:
+                        # Critical error - create a simple default category as a last resort
+                        try:
+                            default_category = TransactionCategory.objects.create(
+                                tax_household=self.household,
+                                name="Other"
+                            )
+                            cleaned_data['category'] = default_category
+                            print(f"DEBUG - Created last resort category: {default_category}")
+                        except Exception as fallback_error:
+                            print(f"CRITICAL - Could not create any category: {fallback_error}")
+                            # At this point, we have to let validation fail
+            
+            # Find or create a special payment method for transfers if it doesn't exist
+            try:
+                # First check if we have any payment methods at all
+                payment_methods = PaymentMethod.objects.filter(is_active=True)
+                
+                if payment_methods.exists():
+                    # Try to find the Bank Transfer method
+                    bank_transfer_methods = payment_methods.filter(name="Bank Transfer")
+                    
+                    if bank_transfer_methods.exists():
+                        # Use existing Bank Transfer method
+                        bank_transfer_method = bank_transfer_methods.first()
+                    else:
+                        # Create a new Bank Transfer method
+                        bank_transfer_method = PaymentMethod.objects.create(
+                            name="Bank Transfer",
+                            icon="bi-bank",
+                            is_active=True
+                        )
+                else:
+                    # No payment methods exist, create a default one
+                    bank_transfer_method = PaymentMethod.objects.create(
+                        name="Bank Transfer",
+                        icon="bi-bank",
+                        is_active=True
+                    )
+                
+                # Set the payment method in the cleaned data
+                cleaned_data['payment_method'] = bank_transfer_method
+                print(f"DEBUG - Set payment method to: {bank_transfer_method}")
+            except Exception as e:
+                print(f"Error creating Bank Transfer payment method: {e}")
+                # If we can't create/get the payment method, use any available
+                payment_methods = PaymentMethod.objects.filter(is_active=True)
+                if payment_methods.exists():
+                    cleaned_data['payment_method'] = payment_methods.first()
+                    print(f"DEBUG - Used fallback payment method: {cleaned_data['payment_method']}")
+                else:
+                    # Critical error - create a simple default payment method as a last resort
+                    try:
+                        default_method = PaymentMethod.objects.create(
+                            name="Credit Card",
+                            icon="bi-credit-card",
+                            is_active=True
+                        )
+                        cleaned_data['payment_method'] = default_method
+                        print(f"DEBUG - Created last resort payment method: {default_method}")
+                    except Exception as fallback_error:
+                        print(f"CRITICAL - Could not create any payment method: {fallback_error}")
+                        # At this point, we have to let validation fail
+            
+            # For transfers, we set recipient to family
+            cleaned_data['recipient'] = 'family'
             cleaned_data['recipient_type'] = 'family'
             cleaned_data['recipient_member'] = None
         else:
-            # Member selected - try to get the member
-            try:
-                member_id = int(recipient_choice)
-                member = HouseholdMember.objects.get(id=member_id)
-                cleaned_data['recipient_type'] = 'member'
-                cleaned_data['recipient_member'] = member
-            except (ValueError, TypeError, HouseholdMember.DoesNotExist):
-                # Invalid member ID, this shouldn't happen with proper form validation
-                raise forms.ValidationError(_("Invalid household member selected."))
+            # Process normal recipient selection
+            recipient_choice = cleaned_data.get('recipient')
+            
+            # Process recipient selection (now only Family or a specific member)
+            if recipient_choice == 'family':
+                # Family option selected
+                cleaned_data['recipient_type'] = 'family'
+                cleaned_data['recipient_member'] = None
+            else:
+                # Member selected - try to get the member
+                try:
+                    member_id = int(recipient_choice)
+                    member = HouseholdMember.objects.get(id=member_id)
+                    cleaned_data['recipient_type'] = 'member'
+                    cleaned_data['recipient_member'] = member
+                except (ValueError, TypeError, HouseholdMember.DoesNotExist):
+                    # Invalid member ID, this shouldn't happen with proper form validation
+                    raise forms.ValidationError(_("Invalid household member selected."))
         
+        # Debug output - print final cleaned data
+        print("Cleaned data after processing:")
+        for key, value in cleaned_data.items():
+            print(f"  {key}: {value}")
+            
         # Handle recurring transaction options
         is_recurring = cleaned_data.get('is_recurring')
         if is_recurring:

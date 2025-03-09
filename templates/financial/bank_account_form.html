@@ -146,10 +146,7 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="{{ form.balance.id_for_label }}" class="form-label">{% translate_json "Current Balance" %}</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">{{ form.currency.value }}</span>
-                                            {{ form.balance }}
-                                        </div>
+                                        {{ form.balance }}
                                         <div class="form-text">{{ form.balance.help_text }}</div>
                                         {% if form.balance.errors %}
                                         <div class="text-danger mt-2">

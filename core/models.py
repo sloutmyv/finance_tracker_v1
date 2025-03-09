@@ -361,6 +361,22 @@ class Transaction(models.Model):
         help_text=_("Specific household member when recipient_type is 'member'")
     )
     
+    # For transfers - link to the paired transaction
+    paired_transaction = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        related_name='reverse_paired_transaction',
+        null=True,
+        blank=True,
+        help_text=_("For transfers, links to the paired transaction (source to destination or vice versa)")
+    )
+    
+    # Flag to identify a transaction as a transfer
+    is_transfer = models.BooleanField(
+        default=False,
+        help_text=_("Indicates if this transaction is part of a transfer between accounts")
+    )
+    
     # Helper method to set recipient from form selection
     def set_recipient(self, recipient_id):
         """

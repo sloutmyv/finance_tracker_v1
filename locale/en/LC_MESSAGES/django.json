@@ -298,5 +298,14 @@
   "This account has": "This account has",
   "transaction": "transaction",
   "transactions": "transactions",
-  "that will also be deleted!": "that will also be deleted!"
+  "that will also be deleted!": "that will also be deleted!",
+  "Transfer between accounts": "Transfer between accounts",
+  "Destination Account": "Destination Account",
+  "Source Account": "Source Account",
+  "This will create two transactions: a withdrawal from the source account and a deposit to the destination account.": "This will create two transactions: a withdrawal from the source account and a deposit to the destination account.",
+  "Please select a destination account for the transfer.": "Please select a destination account for the transfer.",
+  "Source and destination accounts must be different for a transfer.": "Source and destination accounts must be different for a transfer.",
+  "Transfer transaction created successfully.": "Transfer transaction created successfully.",
+  "Error creating transfer transaction.": "Error creating transfer transaction.",
+  "Bank Transfer": "Bank Transfer"
 }

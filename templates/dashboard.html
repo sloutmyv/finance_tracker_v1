@@ -146,6 +146,26 @@
                 <form method="post" action="{% url 'dashboard' %}">
                     {% csrf_token %}
                     
+                    <!-- Transfer option - only shows if there are multiple accounts -->
+                    {% if transaction_form.is_transfer.field.widget.input_type != 'hidden' %}
+                    <div class="form-check mb-3">
+                        {{ transaction_form.is_transfer }}
+                        <label class="form-check-label" for="{{ transaction_form.is_transfer.id_for_label }}">
+                            {% translate_json "Transfer between accounts" %}
+                        </label>
+                        {% if transaction_form.is_transfer.errors %}
+                            <div class="text-danger">{{ transaction_form.is_transfer.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div id="transfer_options" class="mb-3" style="display: none;">
+                        <div class="alert alert-info mb-3 small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            {% translate_json "This will create two transactions: a withdrawal from the source account and a deposit to the destination account." %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label for="{{ transaction_form.date.id_for_label }}" class="form-label">
@@ -168,41 +188,64 @@
                             </label>
                             {{ transaction_form.amount }}
                         </div>
-                        <div class="col-md-4">
-                            <label for="{{ transaction_form.transaction_type.id_for_label }}" class="form-label">
-                                {% translate_json "Type" %}
-                            </label>
-                            {{ transaction_form.transaction_type }}
-                        </div>
-                        <div class="col-md-4">
-                            <label for="{{ transaction_form.category.id_for_label }}" class="form-label">
-                                {% translate_json "Category" %}
-                            </label>
-                            {{ transaction_form.category }}
+                        
+                        <div id="regular_transaction_fields" class="col-md-8">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="{{ transaction_form.transaction_type.id_for_label }}" class="form-label">
+                                        {% translate_json "Type" %}
+                                    </label>
+                                    {{ transaction_form.transaction_type }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ transaction_form.category.id_for_label }}" class="form-label">
+                                        {% translate_json "Category" %}
+                                    </label>
+                                    {{ transaction_form.category }}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
                     <div class="row mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="{{ transaction_form.account.id_for_label }}" class="form-label">
-                                {% translate_json "Account" %}
+                                <span id="account_label">{% translate_json "Account" %}</span>
                             </label>
                             {{ transaction_form.account }}
+                            {% if transaction_form.account.errors %}
+                                <div class="text-danger">{{ transaction_form.account.errors }}</div>
+                            {% endif %}
                         </div>
-                        <div class="col-md-4">
-                            <label for="{{ transaction_form.payment_method.id_for_label }}" class="form-label">
-                                {% translate_json "Payment Method" %}
+                        
+                        <div id="destination_account_container" class="col-md-6" style="display: none;">
+                            <label for="{{ transaction_form.destination_account.id_for_label }}" class="form-label">
+                                {% translate_json "Destination Account" %}
                             </label>
-                            {{ transaction_form.payment_method }}
+                            {{ transaction_form.destination_account }}
+                            {% if transaction_form.destination_account.errors %}
+                                <div class="text-danger">{{ transaction_form.destination_account.errors }}</div>
+                            {% endif %}
                         </div>
-                        <div class="col-md-4">
-                            <label for="{{ transaction_form.recipient.id_for_label }}" class="form-label">
-                                {% translate_json "Recipient" %}
-                            </label>
-                            {{ transaction_form.recipient }}
-                            <small class="form-text text-muted">
-                                {% translate_json "Select 'Family' or a member" %}
-                            </small>
+                        
+                        <div id="regular_payment_fields" class="col-md-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="{{ transaction_form.payment_method.id_for_label }}" class="form-label">
+                                        {% translate_json "Payment Method" %}
+                                    </label>
+                                    {{ transaction_form.payment_method }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ transaction_form.recipient.id_for_label }}" class="form-label">
+                                        {% translate_json "Recipient" %}
+                                    </label>
+                                    {{ transaction_form.recipient }}
+                                    <small class="form-text text-muted">
+                                        {% translate_json "Select 'Family' or a member" %}
+                                    </small>
+                                </div>
+                            </div>
                             
                             <!-- Hidden fields for recipient type -->
                             {{ transaction_form.recipient_type }}
@@ -233,6 +276,19 @@
                     <script>
                         // Function to toggle recurrence options
                         document.addEventListener('DOMContentLoaded', function() {
+                            // First, set up transfer functionality if available
+                            const isTransferCheckbox = document.getElementById('{{ transaction_form.is_transfer.id_for_label }}');
+                            if (isTransferCheckbox) {
+                                // Initialize transfer fields based on checkbox state
+                                toggleTransferOptions(isTransferCheckbox);
+                                
+                                // Add event listener for checkbox changes
+                                isTransferCheckbox.addEventListener('change', function() {
+                                    toggleTransferOptions(this);
+                                });
+                            }
+                            
+                            // Set up recurring functionality
                             const isRecurringCheckbox = document.getElementById('{{ transaction_form.is_recurring.id_for_label }}');
                             
                             // Initialize the display based on current checkbox state
@@ -242,7 +298,142 @@
                             isRecurringCheckbox.addEventListener('change', function() {
                                 toggleRecurrenceOptions(this);
                             });
+                            
+                            // Add form submit handler to re-enable disabled fields before form submission
+                            const form = document.querySelector('form');
+                            if (form) {
+                                form.addEventListener('submit', function(e) {
+                                    // Check if this is a transfer
+                                    if (isTransferCheckbox && isTransferCheckbox.checked) {
+                                        // Get the fields we need to make sure they have values
+                                        const categoryField = document.getElementById('{{ transaction_form.category.id_for_label }}');
+                                        const transactionTypeField = document.getElementById('{{ transaction_form.transaction_type.id_for_label }}');
+                                        const paymentMethodField = document.getElementById('{{ transaction_form.payment_method.id_for_label }}');
+                                        const recipientField = document.getElementById('{{ transaction_form.recipient.id_for_label }}');
+                                        
+                                        // Make sure transaction type is set to expense for the source account
+                                        if (transactionTypeField) {
+                                            transactionTypeField.value = 'expense';
+                                        }
+                                        
+                                        // Set recipient to family for transfers
+                                        if (recipientField) {
+                                            recipientField.value = 'family';
+                                        }
+                                    }
+                                    
+                                    // Re-enable all disabled fields before submit to ensure form values get submitted
+                                    const disabledFields = form.querySelectorAll('select:disabled, input:disabled');
+                                    disabledFields.forEach(function(field) {
+                                        field.disabled = false;
+                                    });
+                                });
+                            }
                         });
+                        
+                        // Function to toggle transfer options
+                        function toggleTransferOptions(checkbox) {
+                            const destinationAccountContainer = document.getElementById('destination_account_container');
+                            const destinationAccount = document.getElementById('{{ transaction_form.destination_account.id_for_label }}');
+                            const regularTransactionFields = document.getElementById('regular_transaction_fields');
+                            const regularPaymentFields = document.getElementById('regular_payment_fields');
+                            const accountLabel = document.getElementById('account_label');
+                            const transferOptions = document.getElementById('transfer_options');
+                            
+                            // Category and transaction type fields
+                            const categoryField = document.getElementById('{{ transaction_form.category.id_for_label }}');
+                            const transactionTypeField = document.getElementById('{{ transaction_form.transaction_type.id_for_label }}');
+                            const paymentMethodField = document.getElementById('{{ transaction_form.payment_method.id_for_label }}');
+                            const recipientField = document.getElementById('{{ transaction_form.recipient.id_for_label }}');
+                            
+                            if (checkbox.checked) {
+                                // Show transfer info and destination account field
+                                if (transferOptions) transferOptions.style.display = 'block';
+                                destinationAccountContainer.style.display = 'block';
+                                destinationAccount.required = true;
+                                
+                                // Hide regular transaction fields
+                                regularTransactionFields.style.display = 'none';
+                                regularPaymentFields.style.display = 'none';
+                                
+                                // Update labels
+                                accountLabel.innerText = "{% translate_json 'Source Account' %}";
+                                
+                                // For transfers, we'll manage category and transaction type in the backend
+                                if (categoryField) {
+                                    categoryField.disabled = true;
+                                    // Store original value
+                                    categoryField.dataset.originalValue = categoryField.value;
+                                }
+                                
+                                if (transactionTypeField) {
+                                    transactionTypeField.disabled = true;
+                                    // Store original value
+                                    transactionTypeField.dataset.originalValue = transactionTypeField.value;
+                                    // Set to expense (withdrawal)
+                                    transactionTypeField.value = 'expense';
+                                }
+                                
+                                if (paymentMethodField) {
+                                    paymentMethodField.disabled = true;
+                                    // Store original value
+                                    paymentMethodField.dataset.originalValue = paymentMethodField.value;
+                                }
+                                
+                                if (recipientField) {
+                                    recipientField.disabled = true;
+                                    // Store original value
+                                    recipientField.dataset.originalValue = recipientField.value;
+                                    // Set recipient to family for transfers
+                                    recipientField.value = 'family';
+                                }
+                            } else {
+                                // Hide transfer info and destination account field
+                                if (transferOptions) transferOptions.style.display = 'none';
+                                destinationAccountContainer.style.display = 'none';
+                                destinationAccount.required = false;
+                                
+                                // Show regular transaction fields
+                                regularTransactionFields.style.display = 'block';
+                                regularPaymentFields.style.display = 'block';
+                                
+                                // Update labels
+                                accountLabel.innerText = "{% translate_json 'Account' %}";
+                                
+                                // Restore original field values and functionality
+                                if (categoryField) {
+                                    categoryField.disabled = false;
+                                    // Restore original value if stored
+                                    if (categoryField.dataset.originalValue) {
+                                        categoryField.value = categoryField.dataset.originalValue;
+                                    }
+                                }
+                                
+                                if (transactionTypeField) {
+                                    transactionTypeField.disabled = false;
+                                    // Restore original value if stored
+                                    if (transactionTypeField.dataset.originalValue) {
+                                        transactionTypeField.value = transactionTypeField.dataset.originalValue;
+                                    }
+                                }
+                                
+                                if (paymentMethodField) {
+                                    paymentMethodField.disabled = false;
+                                    // Restore original value if stored
+                                    if (paymentMethodField.dataset.originalValue) {
+                                        paymentMethodField.value = paymentMethodField.dataset.originalValue;
+                                    }
+                                }
+                                
+                                if (recipientField) {
+                                    recipientField.disabled = false;
+                                    // Restore original value if stored
+                                    if (recipientField.dataset.originalValue) {
+                                        recipientField.value = recipientField.dataset.originalValue;
+                                    }
+                                }
+                            }
+                        }
                         
                         function toggleRecurrenceOptions(checkbox) {
                             const recurrenceOptions = document.getElementById('recurrence_options');

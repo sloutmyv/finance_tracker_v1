@@ -349,6 +349,11 @@ def calculate_balance_evolution(account, start_date, end_date):
     # Sort transactions by date
     all_transactions.sort(key=lambda x: x.date)
     
+    # For debugging, print all transaction dates
+    print(f"DEBUG - All transactions in date order:")
+    for idx, tx in enumerate(all_transactions):
+        print(f"  {idx+1}. Date: {tx.date}, Type: {tx.transaction_type}, Amount: {tx.amount}")
+    
     # If we need to show balance before the recorded balance date, we need to work backwards
     if start_date < initial_balance_date:
         # Filter transactions that occurred before the initial balance date but after start date
@@ -390,6 +395,10 @@ def calculate_balance_evolution(account, start_date, end_date):
     current_date = chart_start_date
     day_delta = timedelta(days=1)
     
+    # For debugging
+    print(f"DEBUG - Chart start date: {chart_start_date}")
+    print(f"DEBUG - Initial balance: {current_balance}")
+    
     # Add initial balance point
     dates.append(chart_start_date.strftime('%Y-%m-%d'))
     balances.append(float(current_balance))
@@ -420,25 +429,27 @@ def calculate_balance_evolution(account, start_date, end_date):
             else:  # expense
                 balance_changes_by_date[date_str] -= amount
     
-    # Process each date in the range
+    # Process each date in the range - add a data point for EVERY day
+    print(f"DEBUG - Generating data points from {current_date} to {end_date}")
+    data_point_count = 0
+    
     while current_date <= end_date:
         date_str = current_date.strftime('%Y-%m-%d')
         
         # If we have transactions on this date, update the balance
         if date_str in balance_changes_by_date:
             current_balance += balance_changes_by_date[date_str]
-            
-            # Add a data point for this date
-            dates.append(date_str)
-            balances.append(float(current_balance))
+            print(f"DEBUG - Date {date_str} has transaction(s), new balance: {current_balance}")
+        
+        # Add a data point for this date (whether or not we have transactions)
+        dates.append(date_str)
+        balances.append(float(current_balance))
+        data_point_count += 1
         
         # Move to next day
         current_date += day_delta
     
-    # If the last date isn't included yet (no transactions on that day), add it
-    if not dates or dates[-1] != end_date.strftime('%Y-%m-%d'):
-        dates.append(end_date.strftime('%Y-%m-%d'))
-        balances.append(float(current_balance))
+    print(f"DEBUG - Generated {data_point_count} data points for the chart")
     
     # Return properly formatted data for the chart
     return {
@@ -1307,22 +1318,129 @@ def transaction_create(request):
             if form.is_valid():
                 print("DEBUG - Form is valid")
                 
-                # Create and save transaction
-                transaction = form.save(commit=False)
-                transaction.tax_household = household
+                # Check if this is a transfer transaction
+                is_transfer = form.cleaned_data.get('is_transfer', False)
                 
-                try:
-                    transaction.save()
-                    print(f"DEBUG - Transaction saved with ID: {transaction.id}")
-                    messages.success(request, _("Transaction created successfully."))
-                    return redirect('dashboard')
-                except Exception as e:
-                    print(f"DEBUG - Error saving: {e}")
-                    messages.error(request, _("Error creating transaction."))
+                # Make sure payment_method and category are in cleaned_data for transfers
+                if is_transfer:
+                    # Make sure we have a payment method
+                    if not form.cleaned_data.get('payment_method'):
+                        print("ERROR: Missing payment_method in cleaned_data for transfer")
+                        messages.error(request, _("Error: Missing payment method for transfer. Please try again."))
+                        return render(request, 'financial/transaction_form.html', {
+                            'form': form,
+                            'title': _('Create Transaction'),
+                        })
+                    
+                    # Make sure we have a category
+                    if not form.cleaned_data.get('category'):
+                        print("ERROR: Missing category in cleaned_data for transfer")
+                        messages.error(request, _("Error: Missing category for transfer. Please try again."))
+                        return render(request, 'financial/transaction_form.html', {
+                            'form': form,
+                            'title': _('Create Transaction'),
+                        })
+                
+                if is_transfer:
+                    # For transfers, we need to create two transactions
+                    try:
+                        # Start a database transaction to ensure both operations succeed or fail together
+                        from django.db import transaction as db_transaction
+                        with db_transaction.atomic():
+                            # Get source and destination accounts
+                            source_account = form.cleaned_data['account']
+                            destination_account = form.cleaned_data['destination_account']
+                            
+                            # Get or create a Transfer category (using _ renamed to avoid name conflict)
+                            transfer_category, created = TransactionCategory.objects.get_or_create(
+                                tax_household=household,
+                                name="Transfer",
+                                defaults={'name': 'Transfer'}
+                            )
+                            
+                            # For transfer transactions, we need to create a special payment method if it doesn't exist
+                            bank_transfer_method, created = PaymentMethod.objects.get_or_create(
+                                name="Bank Transfer",
+                                defaults={
+                                    'name': 'Bank Transfer',
+                                    'icon': 'bi-bank',
+                                    'is_active': True
+                                }
+                            )
+                                                        
+                            # 1. Create the withdrawal transaction (expense)
+                            withdrawal = form.save(commit=False)
+                            withdrawal.tax_household = household
+                            withdrawal.transaction_type = 'expense'
+                            withdrawal.category = transfer_category
+                            withdrawal.payment_method = bank_transfer_method
+                            withdrawal.recipient_type = 'family' # Default to family for transfers
+                            withdrawal.recipient_member = None
+                            withdrawal.description = f"{withdrawal.description} (to {destination_account.name})"
+                            withdrawal.is_transfer = True  # Mark as transfer
+                            withdrawal.save()
+                            
+                            # 2. Create the deposit transaction (income)
+                            deposit = Transaction(
+                                tax_household=household,
+                                date=form.cleaned_data['date'],
+                                description=f"{form.cleaned_data['description']} (from {source_account.name})",
+                                category=transfer_category,
+                                amount=form.cleaned_data['amount'],
+                                account=destination_account,
+                                payment_method=bank_transfer_method, 
+                                transaction_type='income',
+                                recipient_type='family',  # Default to family for transfers
+                                recipient_member=None,
+                                is_recurring=False,  # Transfers can't be recurring yet
+                                is_transfer=True     # Mark as transfer
+                            )
+                            deposit.save()
+                            
+                            # 3. Link the paired transactions
+                            withdrawal.paired_transaction = deposit
+                            withdrawal.save()
+                            deposit.paired_transaction = withdrawal
+                            deposit.save()
+                            
+                            print(f"DEBUG - Created linked transfer transactions: {withdrawal.id} <-> {deposit.id}")
+                            
+                        messages.success(request, _("Transfer transaction created successfully."))
+                        return redirect('dashboard')
+                    except Exception as e:
+                        print(f"DEBUG - Error saving transfer: {e}")
+                        messages.error(request, _("Error creating transfer transaction."))
+                else:
+                    # Regular transaction
+                    transaction_obj = form.save(commit=False)
+                    transaction_obj.tax_household = household
+                    
+                    try:
+                        transaction_obj.save()
+                        print(f"DEBUG - Transaction saved with ID: {transaction_obj.id}")
+                        messages.success(request, _("Transaction created successfully."))
+                        return redirect('dashboard')
+                    except Exception as e:
+                        print(f"DEBUG - Error saving: {e}")
+                        messages.error(request, _("Error creating transaction."))
             else:
                 print("DEBUG - Form is invalid")
                 print(f"DEBUG - Form errors: {form.errors}")
-                messages.error(request, _("There were errors in your form. Please check the error messages below."))
+                print(f"DEBUG - Form non-field errors: {form.non_field_errors()}")
+                # Print the detailed form data to see what's missing
+                print("DEBUG - Form data details:")
+                for field_name in form.fields:
+                    value = form.data.get(field_name, "NOT PRESENT")
+                    required = form.fields[field_name].required
+                    print(f"  {field_name}: value={value}, required={required}")
+                
+                # Display detailed error messages to help debugging
+                error_message = _("There were errors in your form. Please check the error messages below.")
+                if form.errors:
+                    error_details = "<br>".join([f"{field}: {', '.join(errors)}" for field, errors in form.errors.items()])
+                    error_message = f"{error_message}<br><br><small>{error_details}</small>"
+                
+                messages.error(request, error_message)
         else:
             form = TransactionForm(household=household)
             form.initial = {'date': timezone.now().date()}
@@ -1343,6 +1461,138 @@ def transaction_update(request, pk):
         household = request.user.tax_household
         transaction = get_object_or_404(Transaction, pk=pk, tax_household=household)
         
+        # Check if this is a transfer transaction
+        is_transfer = transaction.is_transfer
+        paired_transaction = transaction.paired_transaction
+        
+        print(f"DEBUG - Transaction is a transfer: {is_transfer}")
+        print(f"DEBUG - Paired transaction: {paired_transaction}")
+        
+        # If this is a transfer transaction, redirect to a new transfer form with the data pre-filled
+        if is_transfer and request.method == 'GET':
+            # We need to handle transfer editing differently - create a pre-filled transfer form
+            withdrawal = transaction if transaction.transaction_type == 'expense' else paired_transaction
+            deposit = transaction if transaction.transaction_type == 'income' else paired_transaction
+            
+            if not withdrawal or not deposit:
+                messages.error(request, _("Cannot edit this transfer - the paired transaction is missing."))
+                return redirect('transaction_list')
+            
+            # Create initial data for a transfer form
+            initial_data = {
+                'is_transfer': True,
+                'date': withdrawal.date,
+                'description': withdrawal.description.split(' (to ')[0],  # Remove the " (to X)" suffix
+                'amount': withdrawal.amount,
+                'account': withdrawal.account.id,  # Source account
+                'destination_account': deposit.account.id  # Destination account
+            }
+            
+            # Create a form pre-filled with transfer data
+            form = TransactionForm(initial=initial_data, household=household)
+            
+            # Pre-check the transfer checkbox (the form will initialize accordingly)
+            form.initial['is_transfer'] = True
+            
+            return render(request, 'financial/transaction_form.html', {
+                'form': form,
+                'title': _('Edit Transfer'),
+                'is_transfer_edit': True,
+                'transfer_id': withdrawal.id,  # Store the original withdrawal ID for processing
+                'paired_id': deposit.id        # Store the original deposit ID for processing
+            })
+        
+        # For non-transfer transactions, or for POST requests to update transfers
+        if is_transfer and request.method == 'POST':
+            # If this is a transfer update POST, we need to handle it specially
+            # This happens when the form is submitted from the pre-filled transfer form
+            withdrawal_id = request.POST.get('transfer_id')
+            deposit_id = request.POST.get('paired_id')
+            
+            if withdrawal_id and deposit_id:
+                # Get the original transactions
+                withdrawal = get_object_or_404(Transaction, pk=withdrawal_id, tax_household=household)
+                deposit = get_object_or_404(Transaction, pk=deposit_id, tax_household=household)
+                
+                # Process the form as a transfer update
+                post_data = request.POST.copy()
+                post_data['is_transfer'] = 'on'  # Ensure it's marked as a transfer
+                
+                # Set recipient to family for transfers
+                post_data['recipient'] = 'family'
+                post_data['recipient_type'] = 'family'
+                post_data['recipient_member'] = ''
+                
+                form = TransactionForm(post_data, household=household)
+                
+                if form.is_valid():
+                    print("DEBUG - Transfer Update - Form is valid")
+                    
+                    # Get the form data
+                    date = form.cleaned_data['date']
+                    description = form.cleaned_data['description']
+                    amount = form.cleaned_data['amount']
+                    source_account = form.cleaned_data['account']
+                    destination_account = form.cleaned_data['destination_account']
+                    
+                    # Get or create the transfer category and payment method
+                    transfer_category = None
+                    try:
+                        transfer_category = TransactionCategory.objects.get(
+                            tax_household=household,
+                            name="Transfer"
+                        )
+                    except TransactionCategory.DoesNotExist:
+                        messages.error(request, _("Transfer category not found."))
+                        return redirect('transaction_list')
+                        
+                    bank_transfer_method = None
+                    try:
+                        bank_transfer_method = PaymentMethod.objects.get(name="Bank Transfer")
+                    except PaymentMethod.DoesNotExist:
+                        messages.error(request, _("Bank Transfer payment method not found."))
+                        return redirect('transaction_list')
+                    
+                    # Start a database transaction to ensure both updates are atomic
+                    from django.db import transaction as db_transaction
+                    with db_transaction.atomic():
+                        # Update withdrawal
+                        withdrawal.date = date
+                        withdrawal.description = f"{description} (to {destination_account.name})"
+                        withdrawal.amount = amount
+                        withdrawal.account = source_account
+                        withdrawal.save()
+                        
+                        # Update deposit
+                        deposit.date = date
+                        deposit.description = f"{description} (from {source_account.name})"
+                        deposit.amount = amount
+                        deposit.account = destination_account
+                        deposit.save()
+                    
+                    messages.success(request, _("Transfer updated successfully."))
+                    return redirect('transaction_list')
+                else:
+                    print("DEBUG - Transfer Update Form is invalid")
+                    print(f"DEBUG - Form errors: {form.errors}")
+                    
+                    # Display form errors to the user
+                    error_message = _("There were errors in your form. Please check the error messages below.")
+                    if form.errors:
+                        error_details = "<br>".join([f"{field}: {', '.join(errors)}" for field, errors in form.errors.items()])
+                        error_message = f"{error_message}<br><br><small>{error_details}</small>"
+                    
+                    messages.error(request, error_message)
+                    
+                    # Render the form again with errors
+                    return render(request, 'financial/transaction_form.html', {
+                        'form': form,
+                        'title': _('Edit Transfer'),
+                        'is_transfer_edit': True,
+                        'transfer_id': withdrawal_id,
+                        'paired_id': deposit_id
+                    })
+            
         # Check if there are payment methods available
         payment_methods = PaymentMethod.objects.filter(is_active=True)
         if not payment_methods.exists():
@@ -1353,6 +1603,7 @@ def transaction_update(request, pk):
                 is_active=True
             )
         
+        # Normal (non-transfer) transaction update
         if request.method == 'POST':
             # Debug - print all POST data
             print("DEBUG - POST data:")
@@ -1424,14 +1675,56 @@ def transaction_delete(request, pk):
         household = request.user.tax_household
         transaction = get_object_or_404(Transaction, pk=pk, tax_household=household)
         
+        # Check if this is a transfer transaction
+        is_transfer = transaction.is_transfer
+        paired_transaction = transaction.paired_transaction
+        
+        print(f"DEBUG - Deleting a transfer: {is_transfer}")
+        print(f"DEBUG - Paired transaction: {paired_transaction}")
+        
         if request.method == 'POST':
-            transaction.delete()
-            messages.success(request, _("Transaction deleted successfully."))
+            if is_transfer and paired_transaction:
+                # For transfers, delete both transactions in a database transaction
+                # Import with different name to avoid conflict with the transaction object
+                from django.db import transaction as db_transaction
+                with db_transaction.atomic():
+                    # Store the IDs for the confirmation message
+                    tx_id = transaction.id
+                    paired_id = paired_transaction.id
+                    
+                    # Delete the paired transaction first to avoid database constraint issues
+                    paired_transaction.delete()
+                    
+                    # Then delete the main transaction
+                    transaction.delete()
+                    
+                    messages.success(request, _("Transfer transactions (IDs: {}, {}) deleted successfully.").format(tx_id, paired_id))
+            else:
+                # Normal single transaction deletion
+                transaction.delete()
+                messages.success(request, _("Transaction deleted successfully."))
+                
             return redirect('transaction_list')
         
-        return render(request, 'financial/transaction_confirm_delete.html', {
+        # For GET requests, show the confirmation page
+        context = {
             'transaction': transaction,
-        })
+        }
+        
+        # If this is a transfer, add info about the paired transaction
+        if is_transfer and paired_transaction:
+            context['is_transfer'] = True
+            context['paired_transaction'] = paired_transaction
+            
+            # Determine which is the source and which is the destination
+            if transaction.transaction_type == 'expense':
+                context['source_transaction'] = transaction
+                context['destination_transaction'] = paired_transaction
+            else:
+                context['source_transaction'] = paired_transaction
+                context['destination_transaction'] = transaction
+        
+        return render(request, 'financial/transaction_confirm_delete.html', context)
     
     except TaxHousehold.DoesNotExist:
         messages.warning(request, _("You need to set up your financial environment first."))
@@ -1444,6 +1737,154 @@ def transaction_duplicate(request, pk):
         household = request.user.tax_household
         original_transaction = get_object_or_404(Transaction, pk=pk, tax_household=household)
         
+        # Check if this is a transfer transaction
+        is_transfer = original_transaction.is_transfer
+        paired_transaction = original_transaction.paired_transaction
+        
+        print(f"DEBUG - Duplicating a transfer: {is_transfer}")
+        print(f"DEBUG - Paired transaction: {paired_transaction}")
+        
+        # If this is a transfer, create a special transfer duplicate form
+        if is_transfer:
+            # We need to handle transfer duplication differently
+            withdrawal = original_transaction if original_transaction.transaction_type == 'expense' else paired_transaction
+            deposit = original_transaction if original_transaction.transaction_type == 'income' else paired_transaction
+            
+            if not withdrawal or not deposit:
+                messages.error(request, _("Cannot duplicate this transfer - the paired transaction is missing."))
+                return redirect('transaction_list')
+            
+            # Create initial data for a transfer form
+            initial_data = {
+                'is_transfer': True,
+                'date': timezone.now().date(),  # Set date to today
+                'description': withdrawal.description.split(' (to ')[0],  # Remove the " (to X)" suffix
+                'amount': withdrawal.amount,
+                'account': withdrawal.account.id,  # Source account
+                'destination_account': deposit.account.id  # Destination account
+            }
+            
+            # For POST requests, handle transfer creation
+            if request.method == 'POST':
+                post_data = request.POST.copy()
+                post_data['is_transfer'] = 'on'  # Ensure it's marked as a transfer
+                
+                # Set recipient to family for transfers
+                post_data['recipient'] = 'family'
+                post_data['recipient_type'] = 'family'
+                post_data['recipient_member'] = ''
+                
+                form = TransactionForm(post_data, household=household)
+                
+                if form.is_valid():
+                    # Handle transfer creation (this is already implemented in transaction_create view)
+                    # which uses form.is_transfer to create paired transactions
+                    print("DEBUG - Duplicate Transfer - Form is valid")
+                    
+                    # This is a new transfer, so we use the same code path as creating a new transfer
+                    is_transfer = form.cleaned_data.get('is_transfer', False)
+                    
+                    # Since this is a duplicate, we're creating new transactions
+                    if is_transfer:
+                        # For transfers, we need to create two transactions
+                        try:
+                            # Start a database transaction to ensure both operations succeed or fail together
+                            from django.db import transaction as db_transaction
+                            with db_transaction.atomic():
+                                # Get source and destination accounts
+                                source_account = form.cleaned_data['account']
+                                destination_account = form.cleaned_data['destination_account']
+                                
+                                # Get or create a Transfer category
+                                try:
+                                    transfer_category = TransactionCategory.objects.get(
+                                        tax_household=household,
+                                        name="Transfer"
+                                    )
+                                except TransactionCategory.DoesNotExist:
+                                    messages.error(request, _("Transfer category not found."))
+                                    return redirect('transaction_list')
+                                
+                                # Get or create Bank Transfer payment method
+                                try:
+                                    bank_transfer_method = PaymentMethod.objects.get(name="Bank Transfer")
+                                except PaymentMethod.DoesNotExist:
+                                    messages.error(request, _("Bank Transfer payment method not found."))
+                                    return redirect('transaction_list')
+                                
+                                # 1. Create the withdrawal transaction (expense)
+                                withdrawal = Transaction(
+                                    tax_household=household,
+                                    date=form.cleaned_data['date'],
+                                    description=f"{form.cleaned_data['description']} (to {destination_account.name})",
+                                    category=transfer_category,
+                                    amount=form.cleaned_data['amount'],
+                                    account=source_account,
+                                    payment_method=bank_transfer_method,
+                                    transaction_type='expense',
+                                    recipient_type='family',
+                                    recipient_member=None,
+                                    is_recurring=False,
+                                    is_transfer=True
+                                )
+                                withdrawal.save()
+                                
+                                # 2. Create the deposit transaction (income)
+                                deposit = Transaction(
+                                    tax_household=household,
+                                    date=form.cleaned_data['date'],
+                                    description=f"{form.cleaned_data['description']} (from {source_account.name})",
+                                    category=transfer_category,
+                                    amount=form.cleaned_data['amount'],
+                                    account=destination_account,
+                                    payment_method=bank_transfer_method, 
+                                    transaction_type='income',
+                                    recipient_type='family',
+                                    recipient_member=None,
+                                    is_recurring=False,
+                                    is_transfer=True
+                                )
+                                deposit.save()
+                                
+                                # 3. Link the paired transactions
+                                withdrawal.paired_transaction = deposit
+                                withdrawal.save()
+                                deposit.paired_transaction = withdrawal
+                                deposit.save()
+                            
+                            messages.success(request, _("Transfer duplicated successfully."))
+                            return redirect('transaction_list')
+                        except Exception as e:
+                            print(f"DEBUG - Error duplicating transfer: {e}")
+                            messages.error(request, _("Error duplicating transfer."))
+                            
+                    # Should not reach here since we validated is_transfer above
+                    messages.error(request, _("Invalid transfer data."))
+                    return redirect('transaction_list')
+                else:
+                    print("DEBUG - Duplicate Transfer Form is invalid")
+                    print(f"DEBUG - Form errors: {form.errors}")
+                    
+                    # Display form errors to the user
+                    error_message = _("There were errors in your form. Please check the error messages below.")
+                    if form.errors:
+                        error_details = "<br>".join([f"{field}: {', '.join(errors)}" for field, errors in form.errors.items()])
+                        error_message = f"{error_message}<br><br><small>{error_details}</small>"
+                    
+                    messages.error(request, error_message)
+            else:
+                # For GET requests, create a new form with the initial data
+                form = TransactionForm(initial=initial_data, household=household)
+                form.initial['is_transfer'] = True
+            
+            return render(request, 'financial/transaction_form.html', {
+                'form': form,
+                'title': _('Duplicate Transfer'),
+                'is_duplicate': True,
+                'is_transfer_duplicate': True
+            })
+        
+        # For non-transfer transactions
         # Create initial data for the form
         initial_data = {
             'date': timezone.now().date(),  # Set date to today
@@ -1490,9 +1931,9 @@ def transaction_duplicate(request, pk):
             form = TransactionForm(post_data, household=household)
             
             if form.is_valid():
-                transaction = form.save(commit=False)
-                transaction.tax_household = household
-                transaction.save()
+                transaction_obj = form.save(commit=False)
+                transaction_obj.tax_household = household
+                transaction_obj.save()
                 messages.success(request, _("Transaction duplicated successfully."))
                 return redirect('transaction_list')
         
