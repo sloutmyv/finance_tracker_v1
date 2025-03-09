@@ -4,10 +4,39 @@ from django import template
 from django.utils.safestring import mark_safe
 from django.conf import settings
 from django.utils.translation import get_language
+from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 
 from core.translation_loader import get_translation, TRANSLATION_DICT, load_json_translations
 
 register = template.Library()
+
+@register.filter
+def add_date_years(date_str, years=1):
+    """
+    Add a specified number of years to a date string.
+    Format expected: DD/MM/YYYY
+    """
+    try:
+        if isinstance(date_str, str):
+            date_obj = datetime.strptime(date_str, '%d/%m/%Y').date()
+        else:
+            date_obj = date_str
+            
+        new_date = date_obj + relativedelta(years=years)
+        return new_date.strftime('%d/%m/%y')
+    except Exception as e:
+        print(f"Error in add_date_years filter: {e}")
+        return date_str
+        
+@register.filter
+def split(value, delimiter):
+    """
+    Split a string by delimiter and return a list of parts.
+    """
+    if not value or not isinstance(value, str):
+        return []
+    return value.split(delimiter)
 
 # Ensure translations are loaded
 if not TRANSLATION_DICT:

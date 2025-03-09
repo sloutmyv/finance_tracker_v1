@@ -286,6 +286,5 @@
   "Pay": "Pay",
   "Freq": "Freq",
   "Start": "Start",
-  "End": "End",
-  "Recurring transaction has expired": "Recurring transaction has expired"
+  "End": "End"
 }

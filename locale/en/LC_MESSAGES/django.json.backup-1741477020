@@ -277,15 +277,5 @@
   "Weekly": "Weekly",
   "Monthly": "Monthly",
   "Quarterly": "Quarterly",
-  "Annually": "Annually",
-  "Generated from recurring transaction": "Generated from recurring transaction",
-  "Generated from recurring transaction template": "Generated from recurring transaction template",
-  "Recurrence": "Recurrence",
-  "Get started by adding your first recurring transaction": "Get started by adding your first recurring transaction",
-  "Acc": "Acc",
-  "Pay": "Pay",
-  "Freq": "Freq",
-  "Start": "Start",
-  "End": "End",
-  "Recurring transaction has expired": "Recurring transaction has expired"
+  "Annually": "Annually"
 }

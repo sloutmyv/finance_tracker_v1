@@ -6,9 +6,30 @@ from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, Pay
 class DateInput(forms.DateInput):
     input_type = 'date'
     
-    def __init__(self, attrs=None, format='%d/%m/%Y'):
-        # Set the date format to DD/MM/YYYY
-        super().__init__(attrs=attrs, format=format)
+    def __init__(self, attrs=None, format=None):
+        # For HTML date input, we need to use ISO format for the value
+        self.format = '%Y-%m-%d'
+        super().__init__(attrs=attrs, format=self.format)
+    
+    def format_value(self, value):
+        """Format a Python datetime.date object as a string for the HTML date input."""
+        if value is None:
+            return ''
+        
+        # If it's already a string, try to convert it to ISO format
+        if isinstance(value, str):
+            try:
+                # Try to parse with Django's parsing (handles multiple formats)
+                from django.utils.dateparse import parse_date
+                date_obj = parse_date(value)
+                if date_obj:
+                    return date_obj.strftime(self.format)
+            except:
+                pass
+            return value
+            
+        # Use the parent class's formatting
+        return super().format_value(value)
 
 class TaxHouseholdForm(forms.ModelForm):
     class Meta:
@@ -204,6 +225,19 @@ class TransactionForm(forms.ModelForm):
         if instance and instance.is_recurring and not instance.recurrence_period:
             self.initial['recurrence_period'] = 'monthly'
         
+        # Make sure date values are properly displayed
+        if instance:
+            # Ensure transaction date is properly set
+            if instance.date:
+                self.initial['date'] = instance.date
+                
+            # Set initial values for recurrence date fields if this is an existing recurring transaction
+            if instance.is_recurring:
+                if instance.recurrence_start_date:
+                    self.initial['recurrence_start_date'] = instance.recurrence_start_date
+                if instance.recurrence_end_date:
+                    self.initial['recurrence_end_date'] = instance.recurrence_end_date
+        
         # Add JavaScript for dynamic form behavior
         self.fields['is_recurring'].widget.attrs.update({
             'onchange': 'toggleRecurrenceOptions(this);'
@@ -214,7 +248,7 @@ class TransactionForm(forms.ModelForm):
         fields = [
             'date', 'description', 'amount', 'transaction_type', 'category', 
             'account', 'payment_method', 'recipient_type', 'recipient_member',
-            'is_recurring', 'recurrence_period'
+            'is_recurring', 'recurrence_period', 'recurrence_start_date', 'recurrence_end_date'
         ]
         widgets = {
             'date': DateInput(attrs={'class': 'form-control'}),
@@ -228,6 +262,8 @@ class TransactionForm(forms.ModelForm):
             'recipient_member': forms.HiddenInput(),
             'is_recurring': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'recurrence_period': forms.Select(attrs={'class': 'form-control'}),
+            'recurrence_start_date': DateInput(attrs={'class': 'form-control'}),
+            'recurrence_end_date': DateInput(attrs={'class': 'form-control'}),
         }
         help_texts = {
             'date': _('Date of the transaction'),
@@ -240,10 +276,19 @@ class TransactionForm(forms.ModelForm):
             'recipient': _('Select "Family" or a specific household member'),
             'is_recurring': _('Check if this is a recurring transaction'),
             'recurrence_period': _('How often this transaction recurs'),
+            'recurrence_start_date': _('When to start creating recurring transactions'),
+            'recurrence_end_date': _('When to stop creating recurring transactions'),
         }
     
     def clean(self):
         cleaned_data = super().clean()
+        
+        # Make sure transaction date is preserved
+        if self.instance and self.instance.pk and self.instance.date:
+            # If no date was provided in the form or if it was somehow reset
+            if not cleaned_data.get('date'):
+                cleaned_data['date'] = self.instance.date
+        
         recipient_choice = cleaned_data.get('recipient')
         
         # Process recipient selection (now only Family or a specific member)
@@ -265,12 +310,54 @@ class TransactionForm(forms.ModelForm):
         # Handle recurring transaction options
         is_recurring = cleaned_data.get('is_recurring')
         if is_recurring:
+            from datetime import timedelta, date
+            
             # Default to monthly if no recurrence period is selected
             if not cleaned_data.get('recurrence_period'):
                 cleaned_data['recurrence_period'] = 'monthly'
+                
+            # Set default start date to transaction date if not provided
+            if not cleaned_data.get('recurrence_start_date'):
+                # Check if this is an edit of an existing transaction with a start date
+                if self.instance and self.instance.pk and self.instance.recurrence_start_date:
+                    cleaned_data['recurrence_start_date'] = self.instance.recurrence_start_date
+                else:
+                    # For new transactions, default to the transaction date
+                    cleaned_data['recurrence_start_date'] = cleaned_data.get('date')
+                
+            # Set default end date to one year after start date if not provided
+            if not cleaned_data.get('recurrence_end_date'):
+                # Check if this is an edit of an existing transaction with an end date
+                if self.instance and self.instance.pk and self.instance.recurrence_end_date:
+                    cleaned_data['recurrence_end_date'] = self.instance.recurrence_end_date
+                else:
+                    # For new transactions, default to one year after start date
+                    start_date = cleaned_data.get('recurrence_start_date')
+                    if start_date:
+                        # Set end date to one year after start date
+                        cleaned_data['recurrence_end_date'] = date(
+                            year=start_date.year + 1,
+                            month=start_date.month,
+                            day=start_date.day
+                        )
+            
+            # VALIDATION: Ensure the transaction date (creation date) is within the validity period
+            transaction_date = cleaned_data.get('date')
+            start_date = cleaned_data.get('recurrence_start_date')
+            end_date = cleaned_data.get('recurrence_end_date')
+            
+            if transaction_date and start_date and end_date:
+                if transaction_date < start_date or transaction_date > end_date:
+                    raise forms.ValidationError(
+                        _("Transaction date must be within the recurrence validity period (%(start)s to %(end)s)."),
+                        code='invalid_date_range',
+                        params={'start': start_date.strftime('%Y-%m-%d'), 'end': end_date.strftime('%Y-%m-%d')}
+                    )
         else:
-            # Clear recurrence_period if not recurring
+            # Clear recurrence fields if not recurring
             cleaned_data['recurrence_period'] = ''
+            cleaned_data['recurrence_start_date'] = None
+            cleaned_data['recurrence_end_date'] = None
             
         return cleaned_data
         

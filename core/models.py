@@ -123,6 +123,11 @@ class BankAccount(models.Model):
         if self.account_type:
             return f"{self.name} - {self.bank_name} [{self.reference}]"
         return f"{self.name} - {self.bank_name}"
+        
+    @property
+    def short_reference(self):
+        """Return just the reference code for compact display"""
+        return self.reference if self.reference else self.name[:10]
     
     class Meta:
         ordering = ['bank_name', 'name']
@@ -268,6 +273,16 @@ class Transaction(models.Model):
         default='',
         help_text=_("Frequency of recurrence for recurring transactions")
     )
+    recurrence_start_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text=_("Start date for recurring transactions")
+    )
+    recurrence_end_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text=_("End date for recurring transactions (defaults to one year after start date)")
+    )
     account = models.ForeignKey(
         BankAccount,
         on_delete=models.PROTECT,
@@ -351,6 +366,423 @@ class Transaction(models.Model):
             return f"{self.recipient_member.first_name} {self.recipient_member.last_name}"
         # Default to Family for any other case
         return _("Family")
+    
+    def is_generated_instance(self):
+        """Check if this is a generated instance (as opposed to a real DB transaction)"""
+        return hasattr(self, '_is_generated') and self._is_generated
+    
+    def get_parent_transaction(self):
+        """Return the parent transaction for a generated instance"""
+        if hasattr(self, '_recurring_parent'):
+            return self._recurring_parent
+        return None
+        
+    def generate_recurring_instances(self, current_date=None):
+        """
+        Generate instances of this recurring transaction between start and end dates
+        
+        Args:
+            current_date: The current date (defaults to today's date)
+            
+        Returns:
+            List of Transaction objects representing the recurring instances
+        """
+        from datetime import date, timedelta, datetime
+        from dateutil.relativedelta import relativedelta
+        
+        instances = []  # Initialize return value outside try blocks
+        
+        # CRITICAL: Wrap the entire method in try/except to prevent crashes
+        try:
+            # If not recurring, return empty list
+            if not self.is_recurring:
+                return []
+            
+            # Use today's date if not provided
+            if not current_date:
+                current_date = date.today()
+            
+            # Print detailed debug info about the transaction dates
+            print(f"DETAIL: Transaction {self.id} date fields:")
+            print(f"DETAIL: - self.date = {self.date} ({type(self.date)})")
+            print(f"DETAIL: - self.recurrence_start_date = {self.recurrence_start_date} ({type(self.recurrence_start_date) if self.recurrence_start_date else 'None'})")
+            print(f"DETAIL: - self.recurrence_end_date = {self.recurrence_end_date} ({type(self.recurrence_end_date) if self.recurrence_end_date else 'None'})")
+            print(f"DETAIL: - current_date = {current_date} ({type(current_date)})")
+            
+            # Check for any None values that might cause comparison errors
+            if self.date is None:
+                print(f"ERROR: Transaction {self.id} has no date!")
+                return []
+            
+            # Use a try block for date conversions to catch any errors
+            try:
+                # Make sure we're working with date objects, not datetime
+                if hasattr(self.date, 'date'):  # If it's a datetime
+                    base_date_val = self.date.date()
+                else:  # It's already a date
+                    base_date_val = self.date
+                    
+                # Get creation date for validity checks
+                transaction_creation_date = None
+                if hasattr(self, 'created_at') and self.created_at:
+                    if hasattr(self.created_at, 'date'):
+                        transaction_creation_date = self.created_at.date()
+                    else:
+                        transaction_creation_date = self.created_at
+                
+                # If we can't get created_at, use base_date as a fallback
+                if not transaction_creation_date:
+                    transaction_creation_date = base_date_val
+                
+                # Same for start and end dates
+                if self.recurrence_start_date:
+                    if hasattr(self.recurrence_start_date, 'date'):
+                        start_date = self.recurrence_start_date.date()
+                    else:
+                        start_date = self.recurrence_start_date
+                else:
+                    start_date = base_date_val
+                    
+                # Ensure current_date is also a date, not datetime
+                if hasattr(current_date, 'date'):
+                    current_date = current_date.date()
+                
+                # Handle end date
+                if self.recurrence_end_date:
+                    if hasattr(self.recurrence_end_date, 'date'):
+                        end_date = self.recurrence_end_date.date()
+                    else:
+                        end_date = self.recurrence_end_date
+                else:
+                    # Default to one year after start
+                    end_date = date(
+                        year=start_date.year + 1,
+                        month=start_date.month,
+                        day=start_date.day
+                    )
+            except Exception as e:
+                print(f"ERROR in date conversion for transaction {self.id}: {e}")
+                return []
+            
+            # Safety check - make sure we have valid dates
+            if not isinstance(start_date, date) or not isinstance(end_date, date) or not isinstance(current_date, date):
+                print(f"WARNING: Invalid date types in generate_recurring_instances: start={type(start_date)}, end={type(end_date)}, current={type(current_date)}")
+                return []
+            
+            # More detailed logging
+            print(f"DETAIL: Using dates for transaction {self.id}:")
+            print(f"DETAIL: - creation_date = {transaction_creation_date}")
+            print(f"DETAIL: - base_date_val = {base_date_val}")
+            print(f"DETAIL: - start_date = {start_date}")
+            print(f"DETAIL: - end_date = {end_date}")
+            print(f"DETAIL: - current_date = {current_date}")
+            
+            # VALIDITY CHECKS
+            # Key concepts:
+            # 1. Transaction Creation Date must be within validity period to create instances
+            # 2. Current date must not be before start date to generate instances
+            # 3. If current date is after end date, we only show instances up to end date
+            
+            try:
+                # Check 1: Is creation date within validity period?
+                # NOTE: We're commenting this check out for now as it's preventing instances from showing
+                # after the end date has passed. We'll implement this at the form validation level instead.
+                # This ensures that instances remain visible after the validity period ends.
+                # if transaction_creation_date < start_date or transaction_creation_date > end_date:
+                #     print(f"DEBUG: Transaction {self.id} was created on {transaction_creation_date}, which is outside " +
+                #           f"validity period ({start_date} to {end_date}). No instances will be generated.")
+                #     return []
+                
+                # Check 2: Is current date before start date?
+                if current_date < start_date:
+                    print(f"DEBUG: Transaction {self.id} - current date {current_date} is before start date {start_date}")
+                    return []
+                
+                # Check 3: If current date is after end date, we'll only generate instances up to end date
+                reference_date = current_date
+                if current_date > end_date:
+                    print(f"DEBUG: Transaction {self.id} - current date {current_date} is after end date {end_date}")
+                    print(f"DEBUG: Generating instances from {start_date} to {end_date}")
+                    # Replace current_date with end_date for use in instance generation
+                    reference_date = end_date
+                
+            except TypeError as e:
+                print(f"ERROR in date comparison for transaction {self.id}: {e}")
+                # If there's a type error, we'll continue but log it
+                print(f"DEBUG: Attempting to continue despite comparison error...")
+            
+            # We need to generate instances from start_date up to reference_date
+            instances = []
+            
+            try:
+                # Use the original transaction date as the base for recurring patterns
+                # This determines which day of the month (for monthly), etc.
+                base_date = base_date_val  # Using the clean date object we created above
+                current_instance_date = base_date
+            
+                # Calculate first instance based on base date and recurrence period
+                if self.recurrence_period == 'daily':
+                    # For daily recurrence, always start from the start_date
+                    # This ensures we generate all daily instances between start_date and end_date
+                    current_instance_date = start_date
+                    
+                    # Make sure we're using a valid date
+                    if current_instance_date is None:
+                        print(f"Warning: Start date is None for transaction {self.id}, using base date")
+                        current_instance_date = base_date
+                elif self.recurrence_period == 'weekly':
+                    # Get day of week from base date and find first occurrence after start date
+                    base_weekday = base_date.weekday()
+                    current_instance_date = start_date
+                    while current_instance_date.weekday() != base_weekday:
+                        current_instance_date += timedelta(days=1)
+                elif self.recurrence_period == 'monthly':
+                    # Get day of month from base date (use the original transaction's day)
+                    base_day = base_date.day
+                    
+                    # Try to use the same day in the start month
+                    try:
+                        current_instance_date = date(start_date.year, start_date.month, base_day)
+                    except ValueError:
+                        # Handle case where the start month doesn't have enough days (e.g., Feb 30)
+                        last_day = self._days_in_month(start_date.year, start_date.month)
+                        current_instance_date = date(start_date.year, start_date.month, last_day)
+                        
+                    # If this date is before the start_date, move to next month
+                    if current_instance_date < start_date:
+                        # Use relativedelta for reliable month addition
+                        from dateutil.relativedelta import relativedelta
+                        next_date = current_instance_date + relativedelta(months=1)
+                        
+                        # Try to maintain the same day of month
+                        try:
+                            current_instance_date = date(next_date.year, next_date.month, base_day)
+                        except ValueError:
+                            # Handle months with fewer days
+                            last_day = self._days_in_month(next_date.year, next_date.month)
+                            current_instance_date = date(next_date.year, next_date.month, last_day)
+                elif self.recurrence_period == 'quarterly':
+                    # Get day and month from base date
+                    base_day = min(base_date.day, 28)  # To avoid issues with months < 31 days
+                    base_month = base_date.month
+                    base_quarter_month = ((base_month - 1) % 3) + 1  # Month within the quarter (1, 2, or 3)
+                    
+                    # First quarter month that's >= start date's month
+                    start_quarter = ((start_date.month - 1) // 3) * 3 + 1  # First month of the quarter (1, 4, 7, 10)
+                    target_month = start_quarter + base_quarter_month - 1
+                    
+                    # Create the date
+                    current_instance_date = date(start_date.year, target_month, min(base_day, self._days_in_month(start_date.year, target_month)))
+                    
+                    # If this date is before the start_date, move to next quarter
+                    if current_instance_date < start_date:
+                        target_month += 3
+                        year_adjust = 0
+                        if target_month > 12:
+                            target_month -= 12
+                            year_adjust = 1
+                        current_instance_date = date(start_date.year + year_adjust, target_month, 
+                                                   min(base_day, self._days_in_month(start_date.year + year_adjust, target_month)))
+                elif self.recurrence_period == 'annually':
+                    # Use the month and day from base_date and year from start_date
+                    try:
+                        current_instance_date = date(start_date.year, base_date.month, base_date.day)
+                        # If this date is before the start_date, move to next year
+                        if current_instance_date < start_date:
+                            current_instance_date = date(start_date.year + 1, base_date.month, base_date.day)
+                    except ValueError:
+                        # Handle Feb 29 in non-leap years
+                        current_instance_date = date(start_date.year, base_date.month, 28)
+                        if current_instance_date < start_date:
+                            try:
+                                current_instance_date = date(start_date.year + 1, base_date.month, base_date.day)
+                            except ValueError:
+                                current_instance_date = date(start_date.year + 1, base_date.month, 28)
+            except Exception as e:
+                print(f"ERROR setting up recurrence for transaction {self.id}: {e}")
+                return []
+                
+            # Now generate all instances up to current_date
+            try:
+                # For daily transactions, make sure we generate all instances from start to current date
+                if self.recurrence_period == 'daily':
+                    # Reset temp_date to make sure we start from the recurrence start date
+                    temp_date = start_date
+                    
+                    # For daily recurrence, only generate instances for dates within the validity period
+                    print(f"DEBUG: Generating daily instances from {temp_date} to {reference_date}")
+                    
+                    # Calculate the number of days to check progress
+                    total_days = (reference_date - temp_date).days + 1
+                    instances_created = 0
+                    
+                    # Track created instance dates to avoid duplicates
+                    created_dates = set()
+                    
+                    while temp_date <= reference_date and temp_date <= end_date:
+                        # Skip any days we've already generated (avoid duplicates)
+                        if temp_date in created_dates:
+                            temp_date += timedelta(days=1)
+                            continue
+                            
+                        # Create a new instance for this day
+                        instance = Transaction(
+                            id=f"{self.id}-{temp_date.isoformat()}",  # Virtual ID
+                            tax_household=self.tax_household,
+                            date=temp_date,
+                            description=self.description,
+                            category=self.category,
+                            amount=self.amount,
+                            is_recurring=False,  # Mark as non-recurring since it's an instance
+                            recurrence_period='',
+                            account=self.account,
+                            recipient_type=self.recipient_type,
+                            recipient_member=self.recipient_member,
+                            payment_method=self.payment_method,
+                            transaction_type=self.transaction_type
+                        )
+                        
+                        # Add custom attributes after instantiation
+                        instance._recurring_parent = self
+                        instance._is_generated = True
+                        instances.append(instance)
+                        instances_created += 1
+                        
+                        # Track that we've created an instance for this date
+                        created_dates.add(temp_date)
+                        
+                        # Move to next day
+                        temp_date += timedelta(days=1)
+                    
+                    print(f"DEBUG: Created {instances_created} daily instances out of {total_days} days")
+                    
+                    # Return the instances for daily recurrence as we've handled it specially
+                    return instances
+                    
+                # For other recurrence periods (weekly, monthly, etc.)
+                # Track created instance dates to avoid duplicates
+                created_dates = set()
+                
+                while current_instance_date <= reference_date and current_instance_date <= end_date:
+                    # Skip any days we've already generated (avoid duplicates)
+                    if current_instance_date in created_dates:
+                        # Calculate next instance date based on recurrence period before continuing
+                        if self.recurrence_period == 'weekly':
+                            current_instance_date += timedelta(weeks=1)
+                        elif self.recurrence_period == 'monthly':
+                            next_date = current_instance_date + relativedelta(months=1)
+                            try:
+                                current_instance_date = date(next_date.year, next_date.month, base_date.day)
+                            except ValueError:
+                                # If that day doesn't exist in the next month, use the last day
+                                last_day = self._days_in_month(next_date.year, next_date.month)
+                                current_instance_date = date(next_date.year, next_date.month, last_day)
+                        elif self.recurrence_period == 'quarterly':
+                            next_date = current_instance_date + relativedelta(months=3)
+                            try:
+                                current_instance_date = date(next_date.year, next_date.month, base_date.day)
+                            except ValueError:
+                                last_day = self._days_in_month(next_date.year, next_date.month)
+                                current_instance_date = date(next_date.year, next_date.month, last_day)
+                        elif self.recurrence_period == 'annually':
+                            next_date = current_instance_date + relativedelta(years=1)
+                            try:
+                                current_instance_date = date(next_date.year, base_date.month, base_date.day)
+                            except ValueError:
+                                if base_date.month == 2 and base_date.day == 29:
+                                    current_instance_date = date(next_date.year, 2, 28)
+                                else:
+                                    last_day = self._days_in_month(next_date.year, base_date.month)
+                                    current_instance_date = date(next_date.year, base_date.month, last_day)
+                        else:
+                            # If we don't recognize the recurrence, just move forward by 1 day
+                            current_instance_date += timedelta(days=1)
+                        continue
+                        
+                    # Create a new instance (as a memory-only object, not saved to DB)
+                    instance = Transaction(
+                        id=f"{self.id}-{current_instance_date.isoformat()}",  # Virtual ID
+                        tax_household=self.tax_household,
+                        date=current_instance_date,
+                        description=self.description,
+                        category=self.category,
+                        amount=self.amount,
+                        is_recurring=False,  # Mark as non-recurring since it's an instance
+                        recurrence_period='',
+                        account=self.account,
+                        recipient_type=self.recipient_type,
+                        recipient_member=self.recipient_member,
+                        payment_method=self.payment_method,
+                        transaction_type=self.transaction_type
+                    )
+                    
+                    # Add custom attributes after instantiation
+                    instance._recurring_parent = self
+                    instance._is_generated = True
+                    instances.append(instance)
+                    
+                    # Track that we've created an instance for this date
+                    created_dates.add(current_instance_date)
+                    
+                    # Calculate next instance date based on recurrence period
+                    if self.recurrence_period == 'daily':
+                        current_instance_date += timedelta(days=1)
+                    elif self.recurrence_period == 'weekly':
+                        current_instance_date += timedelta(weeks=1)
+                    elif self.recurrence_period == 'monthly':
+                        # Use dateutil.relativedelta for accurate month calculations
+                        next_date = current_instance_date + relativedelta(months=1)
+                        
+                        # Try to maintain the same day of month as the original transaction
+                        try:
+                            current_instance_date = date(next_date.year, next_date.month, base_date.day)
+                        except ValueError:
+                            # If that day doesn't exist in the next month (e.g., 31st in a 30-day month)
+                            # use the last day of the month
+                            last_day = self._days_in_month(next_date.year, next_date.month)
+                            current_instance_date = date(next_date.year, next_date.month, last_day)
+                    elif self.recurrence_period == 'quarterly':
+                        # Use dateutil.relativedelta for accurate quarter calculations
+                        next_date = current_instance_date + relativedelta(months=3)
+                        
+                        # Try to maintain the same day of month as the original transaction
+                        try:
+                            current_instance_date = date(next_date.year, next_date.month, base_date.day)
+                        except ValueError:
+                            # If that day doesn't exist in the next month (e.g., 31st in a 30-day month)
+                            # use the last day of the month
+                            last_day = self._days_in_month(next_date.year, next_date.month)
+                            current_instance_date = date(next_date.year, next_date.month, last_day)
+                            
+                    elif self.recurrence_period == 'annually':
+                        # Use dateutil.relativedelta for accurate year calculations
+                        next_date = current_instance_date + relativedelta(years=1)
+                        
+                        # Try to maintain the same month/day as the original transaction
+                        try:
+                            current_instance_date = date(next_date.year, base_date.month, base_date.day)
+                        except ValueError:
+                            # Handle Feb 29 in non-leap years
+                            if base_date.month == 2 and base_date.day == 29:
+                                current_instance_date = date(next_date.year, 2, 28)
+                            else:
+                                # For other invalid dates, use the last day of the month
+                                last_day = self._days_in_month(next_date.year, base_date.month)
+                                current_instance_date = date(next_date.year, base_date.month, last_day)
+            except Exception as e:
+                print(f"ERROR generating instances for transaction {self.id}: {e}")
+                # Return whatever instances we managed to generate before the error
+        except Exception as e:
+            print(f"CRITICAL ERROR in generate_recurring_instances for transaction {self.id}: {e}")
+            return []
+            
+        return instances
+    
+    @staticmethod
+    def _days_in_month(year, month):
+        """Helper method to calculate the number of days in a month"""
+        import calendar
+        return calendar.monthrange(year, month)[1]
     
     class Meta:
         ordering = ['-date', '-created_at']

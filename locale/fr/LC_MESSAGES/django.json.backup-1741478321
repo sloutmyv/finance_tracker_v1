@@ -282,6 +282,5 @@
   "Pay": "Paie",
   "Freq": "Fréq",
   "Start": "Début",
-  "End": "Fin",
-  "Recurring transaction has expired": "La transaction récurrente a expiré"
+  "End": "Fin"
 }

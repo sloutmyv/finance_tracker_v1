@@ -280,11 +280,12 @@
 <div class="row mt-4">
     <div class="col-md-12">
         <div class="card w-100">
-            <div class="card-header bg-light">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="bi bi-clock-history me-2"></i>
                     {% translate_json "Recent Transactions" %}
                 </h5>
+                <span class="text-muted small">{% translate_json "Recent 7 transactions" %}</span>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -296,19 +297,63 @@
                                 <th>{% translate_json "Category" %}</th>
                                 <th>{% translate_json "Account" %}</th>
                                 <th class="text-end">{% translate_json "Amount" %}</th>
+                                <th class="text-center">{% translate_json "Actions" %}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for transaction in recent_transactions %}
                             <tr>
                                 <td>{{ transaction.date|date:"d/m/y" }}</td>
-                                <td>{{ transaction.description }}</td>
+                                <td>
+                                    {{ transaction.description }}
+                                    {% if transaction.is_recurring %}
+                                        <!-- Recurring transaction parent/template -->
+                                        <span class="badge bg-info badge-sm ms-1" title="{% translate_json 'Recurring transaction' %}">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </span>
+                                    {% elif transaction.id|stringformat:"s" and "-" in transaction.id|stringformat:"s" %}
+                                        <!-- This is a generated instance from a recurring transaction -->
+                                        <span class="badge bg-info badge-sm ms-1" title="{% translate_json 'Recurring transaction instance' %}">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <span class="badge bg-secondary">{{ transaction.category.name }}</span>
                                 </td>
-                                <td>{{ transaction.account.name }}</td>
+                                <td>{{ transaction.account.short_reference }}</td>
                                 <td class="text-end {% if transaction.transaction_type == 'expense' %}text-danger{% else %}text-success{% endif %}">
-                                    {% if transaction.transaction_type == 'expense' %}-{% endif %}{{ transaction.amount }}
+                                    <strong>{% if transaction.transaction_type == 'expense' %}-{% endif %}{{ transaction.amount }}</strong>
+                                </td>
+                                <td class="text-center">
+                                    <div class="transaction-actions">
+                                        {% if transaction.id|stringformat:"s" and "-" in transaction.id|stringformat:"s" %}
+                                            <!-- This is a generated instance from a recurring transaction -->
+                                            <!-- Get the parent transaction ID to allow editing the template -->
+                                            {% with parent_id=transaction.id|stringformat:"s"|split:"-"|first %}
+                                                <a href="{% url 'transaction_update' parent_id %}" class="btn btn-xs text-primary p-0" title="{% translate_json 'Edit recurring transaction' %}">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a href="{% url 'transaction_duplicate' parent_id %}" class="btn btn-xs text-info p-0" title="{% translate_json 'Duplicate recurring transaction' %}">
+                                                    <i class="bi bi-copy"></i>
+                                                </a>
+                                                <a href="{% url 'transaction_delete' parent_id %}" class="btn btn-xs text-danger p-0" title="{% translate_json 'Delete recurring transaction' %}">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            {% endwith %}
+                                        {% else %}
+                                            <!-- Regular transaction with edit/delete options -->
+                                            <a href="{% url 'transaction_update' transaction.id %}" class="btn btn-xs text-primary p-0" title="{% translate_json 'Edit' %}">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'transaction_duplicate' transaction.id %}" class="btn btn-xs text-info p-0" title="{% translate_json 'Duplicate' %}">
+                                                <i class="bi bi-copy"></i>
+                                            </a>
+                                            <a href="{% url 'transaction_delete' transaction.id %}" class="btn btn-xs text-danger p-0" title="{% translate_json 'Delete' %}">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}

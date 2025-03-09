@@ -21,6 +21,16 @@
                 <form method="post">
                     {% csrf_token %}
                     
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger mb-3">
+                        <ul class="mb-0">
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label for="{{ form.date.id_for_label }}" class="form-label">
@@ -128,6 +138,33 @@
                                 {% if form.recurrence_period.errors %}
                                     <div class="text-danger">{{ form.recurrence_period.errors }}</div>
                                 {% endif %}
+                                
+                                <div class="row mt-2">
+                                    <div class="col-md-6">
+                                        <label for="{{ form.recurrence_start_date.id_for_label }}" class="form-label">
+                                            {% translate_json "Start Date" %}
+                                        </label>
+                                        {{ form.recurrence_start_date }}
+                                        {% if form.recurrence_start_date.errors %}
+                                            <div class="text-danger">{{ form.recurrence_start_date.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            {% translate_json "Defaults to transaction date" %}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="{{ form.recurrence_end_date.id_for_label }}" class="form-label">
+                                            {% translate_json "End Date" %}
+                                        </label>
+                                        {{ form.recurrence_end_date }}
+                                        {% if form.recurrence_end_date.errors %}
+                                            <div class="text-danger">{{ form.recurrence_end_date.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            {% translate_json "Defaults to one year after start date" %}
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -136,9 +173,86 @@
                     </div>
                     
                     <script>
+                        // Make sure date fields have correct format
+                        function formatDateForInput(dateValue) {
+                            // If already in YYYY-MM-DD format, just return it
+                            if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                                return dateValue;
+                            }
+                            
+                            try {
+                                // Try to parse as DD/MM/YYYY or any other format
+                                const parts = dateValue.split(/[\/.-]/);
+                                
+                                // Check if it's likely in DD/MM/YYYY format
+                                if (parts.length === 3) {
+                                    let year, month, day;
+                                    
+                                    // If first part is likely a day (1-31)
+                                    if (parseInt(parts[0]) <= 31) {
+                                        day = parseInt(parts[0]);
+                                        month = parseInt(parts[1]);
+                                        year = parseInt(parts[2]);
+                                        
+                                        // If year is 2 digits, assume 2000s
+                                        if (year < 100) {
+                                            year += 2000;
+                                        }
+                                        
+                                        // Format as YYYY-MM-DD
+                                        return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                                    }
+                                }
+                                
+                                // If we couldn't parse it specifically, try Date constructor
+                                const date = new Date(dateValue);
+                                if (!isNaN(date.getTime())) {
+                                    return date.toISOString().split('T')[0];
+                                }
+                            } catch (e) {
+                                console.error("Error parsing date:", e);
+                            }
+                            
+                            // Return the original value if parsing failed
+                            return dateValue;
+                        }
+                        
                         // Function to toggle recurrence options
                         document.addEventListener('DOMContentLoaded', function() {
+                            // Format all date inputs to ISO format for HTML date fields
+                            const dateInputs = document.querySelectorAll('input[type="date"]');
+                            dateInputs.forEach(function(input) {
+                                if (input.value) {
+                                    input.value = formatDateForInput(input.value);
+                                }
+                            });
+                        
                             const isRecurringCheckbox = document.getElementById('{{ form.is_recurring.id_for_label }}');
+                            const startDateInput = document.getElementById('{{ form.recurrence_start_date.id_for_label }}');
+                            const endDateInput = document.getElementById('{{ form.recurrence_end_date.id_for_label }}');
+                            
+                            // For existing transactions, preserve the original date values
+                            if (isRecurringCheckbox && isRecurringCheckbox.checked) {
+                                // Make sure the date fields are visible
+                                const recurrenceOptions = document.getElementById('recurrence_options');
+                                if (recurrenceOptions) {
+                                    recurrenceOptions.style.display = 'block';
+                                }
+                                
+                                // Make sure recurrence period is enabled
+                                const recurrencePeriod = document.getElementById('{{ form.recurrence_period.id_for_label }}');
+                                if (recurrencePeriod) {
+                                    recurrencePeriod.disabled = false;
+                                }
+                                
+                                // Store original values for potential recovery
+                                if (startDateInput) {
+                                    startDateInput.dataset.originalValue = startDateInput.value;
+                                }
+                                if (endDateInput) {
+                                    endDateInput.dataset.originalValue = endDateInput.value;
+                                }
+                            }
                             
                             // Initialize the display based on current checkbox state
                             toggleRecurrenceOptions(isRecurringCheckbox);
@@ -146,12 +260,45 @@
                             // Add event listener for checkbox changes
                             isRecurringCheckbox.addEventListener('change', function() {
                                 toggleRecurrenceOptions(this);
+                                
+                                // Restore original values when re-checking the box
+                                if (this.checked) {
+                                    if (startDateInput && startDateInput.dataset.originalValue) {
+                                        startDateInput.value = startDateInput.dataset.originalValue;
+                                    }
+                                    if (endDateInput && endDateInput.dataset.originalValue) {
+                                        endDateInput.value = endDateInput.dataset.originalValue;
+                                    }
+                                }
                             });
+                            
+                            // Set default end date when start date is changed
+                            if (startDateInput && endDateInput) {
+                                startDateInput.addEventListener('change', function() {
+                                    // If end date is empty, set it to one year after start date
+                                    if (!endDateInput.value) {
+                                        const startDate = new Date(this.value);
+                                        // Add one year to start date
+                                        const endDate = new Date(
+                                            startDate.getFullYear() + 1,
+                                            startDate.getMonth(),
+                                            startDate.getDate()
+                                        );
+                                        
+                                        // Format date as YYYY-MM-DD for input
+                                        const formattedDate = endDate.toISOString().split('T')[0];
+                                        endDateInput.value = formattedDate;
+                                    }
+                                });
+                            }
                         });
                         
                         function toggleRecurrenceOptions(checkbox) {
                             const recurrenceOptions = document.getElementById('recurrence_options');
                             const recurrencePeriod = document.getElementById('{{ form.recurrence_period.id_for_label }}');
+                            const startDateInput = document.getElementById('{{ form.recurrence_start_date.id_for_label }}');
+                            const endDateInput = document.getElementById('{{ form.recurrence_end_date.id_for_label }}');
+                            const transactionDate = document.getElementById('{{ form.date.id_for_label }}');
                             
                             if (checkbox.checked) {
                                 recurrenceOptions.style.display = 'block';
@@ -161,10 +308,43 @@
                                 if (!recurrencePeriod.value) {
                                     recurrencePeriod.value = 'monthly';
                                 }
+                                
+                                // For new transactions or if start date is not set:
+                                // Set start date to transaction date if not set
+                                if (startDateInput && !startDateInput.value && transactionDate) {
+                                    startDateInput.value = transactionDate.value;
+                                }
+                                
+                                // Set end date to one year after start date if not set
+                                if (startDateInput && endDateInput && startDateInput.value && !endDateInput.value) {
+                                    const startDate = new Date(startDateInput.value);
+                                    // Add one year to start date
+                                    const endDate = new Date(
+                                        startDate.getFullYear() + 1,
+                                        startDate.getMonth(),
+                                        startDate.getDate()
+                                    );
+                                    
+                                    // Format date as YYYY-MM-DD for input
+                                    const formattedDate = endDate.toISOString().split('T')[0];
+                                    endDateInput.value = formattedDate;
+                                }
                             } else {
                                 recurrenceOptions.style.display = 'none';
                                 recurrencePeriod.disabled = true;
                                 recurrencePeriod.value = '';
+                                
+                                // Store current values before clearing
+                                const currentStartDate = startDateInput ? startDateInput.value : '';
+                                const currentEndDate = endDateInput ? endDateInput.value : '';
+                                
+                                // Clear date fields visually
+                                if (startDateInput) startDateInput.value = '';
+                                if (endDateInput) endDateInput.value = '';
+                                
+                                // Store original values in data attributes for recovery if needed
+                                if (startDateInput) startDateInput.dataset.originalValue = currentStartDate;
+                                if (endDateInput) endDateInput.dataset.originalValue = currentEndDate;
                             }
                         }
                     </script>

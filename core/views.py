@@ -118,10 +118,69 @@ def dashboard(request):
                 # Set default date to today
                 transaction_form.initial = {'date': timezone.now().date()}
             
-            # Get recent transactions
-            recent_transactions = Transaction.objects.filter(
-                tax_household=household
-            ).order_by('-date', '-created_at')[:5]
+            # Get transactions from the database for the dashboard
+            db_transactions = Transaction.objects.filter(tax_household=household)
+            
+            # Get today's date for generating recurring instances
+            from datetime import date
+            today = date.today()
+            
+            # Separate recurring and non-recurring transactions
+            recurring_db_transactions = list(db_transactions.filter(is_recurring=True))
+            non_recurring_db_transactions = list(db_transactions.filter(is_recurring=False))
+            
+            # Generate instances for recurring transactions
+            generated_instances = []
+            for transaction in recurring_db_transactions:
+                try:
+                    # Generate instances for this recurring transaction
+                    instances = transaction.generate_recurring_instances(current_date=today)
+                    generated_instances.extend(instances)
+                except Exception as e:
+                    print(f"Error generating dashboard instances for transaction {transaction.id}: {e}")
+            
+            # Combine all transactions
+            combined_transactions = non_recurring_db_transactions + recurring_db_transactions
+            
+            # Add generated instances, but skip any that would create duplicates
+            existing_dates = {(t.date, t.description, t.amount) for t in combined_transactions if t.date}
+            
+            unique_generated_instances = []
+            for instance in generated_instances:
+                instance_key = (instance.date, instance.description, instance.amount)
+                if instance_key not in existing_dates:
+                    unique_generated_instances.append(instance)
+                    existing_dates.add(instance_key)
+                    
+            all_transactions = combined_transactions + unique_generated_instances
+            
+            # Sort transactions by date and created_at (newest first)
+            def safe_sort_key(transaction):
+                # If transaction.date is None, use today as a fallback
+                if transaction.date is None:
+                    transaction_date = today
+                else:
+                    transaction_date = transaction.date
+                    
+                # Convert to date object if it's a datetime
+                if hasattr(transaction_date, 'date'):
+                    transaction_date = transaction_date.date()
+                    
+                # Handle created_at safely
+                if hasattr(transaction, 'created_at') and transaction.created_at is not None:
+                    created_at = transaction.created_at
+                    if hasattr(created_at, 'date'):
+                        created_at = created_at.date()
+                else:
+                    created_at = today
+                    
+                return (transaction_date, created_at)
+                
+            # Sort with our safe key function
+            all_transactions.sort(key=safe_sort_key, reverse=True)
+            
+            # Take only the 7 most recent transactions
+            recent_transactions = all_transactions[:7]
             
             # Get payment methods for the form
             payment_methods = PaymentMethod.objects.filter(is_active=True)
@@ -750,10 +809,11 @@ def process_transaction_from_form(form, household):
 # Transaction Views
 @login_required
 def transaction_list(request):
-    """View to display all transactions with filtering options"""
+    """View to display all transactions with filtering options, including recurring instances"""
     try:
         household = request.user.tax_household
-        transactions = Transaction.objects.filter(tax_household=household).order_by('-date', '-created_at')
+        # Get all actual transactions from the database
+        db_transactions = Transaction.objects.filter(tax_household=household)
         
         # Handle filtering
         category_filter = request.GET.get('category')
@@ -762,20 +822,120 @@ def transaction_list(request):
         date_from = request.GET.get('date_from')
         date_to = request.GET.get('date_to')
         
+        # Apply filters to the database query
         if category_filter:
-            transactions = transactions.filter(category_id=category_filter)
+            db_transactions = db_transactions.filter(category_id=category_filter)
         
         if account_filter:
-            transactions = transactions.filter(account_id=account_filter)
+            db_transactions = db_transactions.filter(account_id=account_filter)
         
         if type_filter:
-            transactions = transactions.filter(transaction_type=type_filter)
+            db_transactions = db_transactions.filter(transaction_type=type_filter)
         
+        # Don't apply date filters here yet, as we need to generate recurring instances first
+        
+        # Separate recurring and non-recurring transactions
+        from datetime import date
+        today = date.today()
+        
+        # Get all recurring and non-recurring transactions
+        recurring_transactions = list(db_transactions.filter(is_recurring=True))
+        non_recurring_transactions = list(db_transactions.filter(is_recurring=False))
+        
+        # Generate instances for recurring transactions
+        generated_instances = []
+        for transaction in recurring_transactions:
+            # Detailed debug for transaction dates
+            print(f"DEBUG: Processing transaction ID {transaction.id}")
+            print(f"DEBUG: Transaction date: {transaction.date} (type: {type(transaction.date)})")
+            print(f"DEBUG: Recurrence start date: {transaction.recurrence_start_date} (type: {type(transaction.recurrence_start_date) if transaction.recurrence_start_date else 'None'})")
+            print(f"DEBUG: Recurrence end date: {transaction.recurrence_end_date} (type: {type(transaction.recurrence_end_date) if transaction.recurrence_end_date else 'None'})")
+            
+            try:
+                # The transaction model will handle all validation logic:
+                # 1. Check if creation date is within validity period
+                # 2. Generate instances only within validity period
+                # 3. Prevent duplicate instances
+                instances = transaction.generate_recurring_instances(current_date=today)
+                
+                # Debug logging to help diagnose issues
+                print(f"DEBUG: Generated {len(instances)} instances for transaction {transaction.id} ({transaction.description}) with recurrence {transaction.recurrence_period}")
+                if instances:
+                    print(f"DEBUG: First instance: {instances[0].date}, Last instance: {instances[-1].date}")
+                    
+                # Apply category and account filters to generated instances
+                if category_filter:
+                    instances = [inst for inst in instances if inst.category_id == int(category_filter)]
+                if account_filter:
+                    instances = [inst for inst in instances if inst.account_id == int(account_filter)]
+                if type_filter:
+                    instances = [inst for inst in instances if inst.transaction_type == type_filter]
+                    
+                generated_instances.extend(instances)
+            except Exception as e:
+                print(f"ERROR generating instances for transaction {transaction.id}: {e}")
+                # Continue with other transactions instead of crashing
+        
+        # Combine all transactions
+        combined_transactions = non_recurring_transactions + recurring_transactions
+        
+        # Add generated instances, but skip any that would create duplicates
+        # This prevents duplicates on the creation date of recurring transactions
+        existing_dates = {(t.date, t.description, t.amount) for t in combined_transactions if t.date}
+        
+        unique_generated_instances = []
+        for instance in generated_instances:
+            instance_key = (instance.date, instance.description, instance.amount)
+            if instance_key not in existing_dates:
+                unique_generated_instances.append(instance)
+                existing_dates.add(instance_key)
+                
+        all_transactions = combined_transactions + unique_generated_instances
+        
+        # Apply date filters to the combined list
         if date_from:
-            transactions = transactions.filter(date__gte=date_from)
+            # Convert to date object if it's a string
+            if isinstance(date_from, str):
+                from django.utils.dateparse import parse_date
+                date_from = parse_date(date_from)
+                
+            if date_from:  # Make sure we have a valid date
+                all_transactions = [t for t in all_transactions if t.date and t.date >= date_from]
         
         if date_to:
-            transactions = transactions.filter(date__lte=date_to)
+            # Convert to date object if it's a string
+            if isinstance(date_to, str):
+                from django.utils.dateparse import parse_date
+                date_to = parse_date(date_to)
+                
+            if date_to:  # Make sure we have a valid date
+                all_transactions = [t for t in all_transactions if t.date and t.date <= date_to]
+        
+        # Sort transactions by date (newest first)
+        # Use a safer sort key that handles None values
+        def safe_sort_key(transaction):
+            # If transaction.date is None, use today as a fallback
+            if transaction.date is None:
+                transaction_date = today
+            else:
+                transaction_date = transaction.date
+                
+            # Convert to date object if it's a datetime
+            if hasattr(transaction_date, 'date'):
+                transaction_date = transaction_date.date()
+                
+            # Handle created_at safely
+            if hasattr(transaction, 'created_at') and transaction.created_at is not None:
+                created_at = transaction.created_at
+                if hasattr(created_at, 'date'):
+                    created_at = created_at.date()
+            else:
+                created_at = today
+                
+            return (transaction_date, created_at)
+            
+        # Sort with our safe key function
+        all_transactions.sort(key=safe_sort_key, reverse=True)
         
         # Get filter options
         categories = TransactionCategory.objects.filter(tax_household=household)
@@ -783,7 +943,7 @@ def transaction_list(request):
         accounts = BankAccount.objects.filter(members__in=members).distinct()
         
         context = {
-            'transactions': transactions,
+            'transactions': all_transactions,
             'categories': categories,
             'accounts': accounts,
             'current_filters': {
@@ -803,20 +963,21 @@ def transaction_list(request):
 
 @login_required
 def recurring_transaction_list(request):
-    """View to display recurring transactions"""
+    """View to display recurring transactions templates only"""
     try:
         household = request.user.tax_household
-        transactions = Transaction.objects.filter(
+        recurring_transactions = Transaction.objects.filter(
             tax_household=household,
             is_recurring=True
         ).order_by('-date', '-created_at')
         
         context = {
-            'transactions': transactions,
+            'transactions': recurring_transactions,
             'is_recurring_view': True,
+            'show_recurrence_details': True,  # Flag to show recurrence details in template
         }
         
-        return render(request, 'financial/transaction_list.html', context)
+        return render(request, 'financial/recurring_transaction_list.html', context)
     
     except TaxHousehold.DoesNotExist:
         messages.warning(request, _("You need to set up your financial environment first."))
@@ -891,7 +1052,7 @@ def transaction_create(request):
             else:
                 print("DEBUG - Form is invalid")
                 print(f"DEBUG - Form errors: {form.errors}")
-                messages.error(request, f"Form validation errors: {form.errors}")
+                messages.error(request, _("There were errors in your form. Please check the error messages below."))
         else:
             form = TransactionForm(household=household)
             form.initial = {'date': timezone.now().date()}
@@ -969,8 +1130,12 @@ def transaction_update(request, pk):
             else:
                 print("DEBUG - Form is invalid")
                 print(f"DEBUG - Form errors: {form.errors}")
+                # Display form errors to the user
+                messages.error(request, _("There were errors in your form. Please check the error messages below."))
         else:
             form = TransactionForm(household=household, instance=transaction)
+            print(f"DEBUG - Transaction instance date: {transaction.date}")
+            print(f"DEBUG - Form initial date value: {form.initial.get('date')}")
         
         return render(request, 'financial/transaction_form.html', {
             'form': form,

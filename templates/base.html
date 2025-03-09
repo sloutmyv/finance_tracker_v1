@@ -30,6 +30,26 @@
         .transaction-actions .btn-xs:hover {
             background-color: rgba(0,0,0,0.05);
         }
+        
+        /* Smaller table rows for compact display */
+        .table-sm td, .table-sm th {
+            padding: 0.2rem 0.4rem !important;
+            vertical-align: middle !important;
+        }
+        
+        /* Smaller badges */
+        .badge-sm {
+            font-size: 0.7rem !important;
+            padding: 0.15rem 0.4rem !important;
+        }
+        
+        /* Wrap long text in tables */
+        .table td {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>

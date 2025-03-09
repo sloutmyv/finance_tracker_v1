@@ -275,13 +275,5 @@
   "Quarterly": "Trimestriel",
   "Annually": "Annuel",
   "Generated from recurring transaction": "Générée à partir d'une transaction récurrente",
-  "Generated from recurring transaction template": "Générée à partir du modèle de transaction récurrente",
-  "Recurrence": "Récurrence",
-  "Get started by adding your first recurring transaction": "Commencez par ajouter votre première transaction récurrente",
-  "Acc": "Cpte",
-  "Pay": "Paie",
-  "Freq": "Fréq",
-  "Start": "Début",
-  "End": "Fin",
-  "Recurring transaction has expired": "La transaction récurrente a expiré"
+  "Generated from recurring transaction template": "Générée à partir du modèle de transaction récurrente"
 }
