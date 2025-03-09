@@ -97,18 +97,132 @@ def dashboard(request):
                 if transaction_form.is_valid():
                     print("DASHBOARD DEBUG - Form is valid")
                     
-                    # Create and save transaction
-                    transaction = transaction_form.save(commit=False)
-                    transaction.tax_household = household
+                    # Check if this is a transfer transaction
+                    is_transfer = transaction_form.cleaned_data.get('is_transfer', False)
                     
-                    try:
-                        transaction.save()
-                        print(f"DASHBOARD DEBUG - Transaction saved with ID: {transaction.id}")
-                        messages.success(request, _("Transaction created successfully."))
-                        return redirect('dashboard')
-                    except Exception as e:
-                        print(f"DASHBOARD DEBUG - Error saving: {e}")
-                        messages.error(request, _("Error creating transaction."))
+                    # Make sure payment_method and category are in cleaned_data for transfers
+                    if is_transfer:
+                        # Make sure we have a payment method
+                        if not transaction_form.cleaned_data.get('payment_method'):
+                            print("ERROR: Missing payment_method in cleaned_data for transfer")
+                            messages.error(request, _("Error: Missing payment method for transfer. Please try again."))
+                            return render(request, 'dashboard.html', {
+                                'username': request.user.username,
+                                'has_household': has_household,
+                                'has_members': has_members,
+                                'has_bank_accounts': has_bank_accounts,
+                                'has_categories': has_categories,
+                                'setup_complete': setup_complete,
+                                'transaction_form': transaction_form,
+                                'recent_transactions': recent_transactions,
+                                'payment_methods': payment_methods,
+                            })
+                        
+                        # Make sure we have a category
+                        if not transaction_form.cleaned_data.get('category'):
+                            print("ERROR: Missing category in cleaned_data for transfer")
+                            messages.error(request, _("Error: Missing category for transfer. Please try again."))
+                            return render(request, 'dashboard.html', {
+                                'username': request.user.username,
+                                'has_household': has_household,
+                                'has_members': has_members,
+                                'has_bank_accounts': has_bank_accounts,
+                                'has_categories': has_categories,
+                                'setup_complete': setup_complete,
+                                'transaction_form': transaction_form,
+                                'recent_transactions': recent_transactions,
+                                'payment_methods': payment_methods,
+                            })
+                    
+                    if is_transfer:
+                        # For transfers, we need to create two transactions
+                        try:
+                            # Start a database transaction to ensure both operations succeed or fail together
+                            from django.db import transaction as db_transaction
+                            with db_transaction.atomic():
+                                # Get source and destination accounts
+                                source_account = transaction_form.cleaned_data['account']
+                                destination_account = transaction_form.cleaned_data['destination_account']
+                                
+                                # Get or create a Transfer category (using _ renamed to avoid name conflict)
+                                transfer_category, created = TransactionCategory.objects.get_or_create(
+                                    tax_household=household,
+                                    name="Transfer",
+                                    defaults={'name': 'Transfer'}
+                                )
+                                
+                                # For transfer transactions, we need to create a special payment method if it doesn't exist
+                                bank_transfer_method, created = PaymentMethod.objects.get_or_create(
+                                    name="Bank Transfer",
+                                    defaults={
+                                        'name': 'Bank Transfer',
+                                        'icon': 'bi-bank',
+                                        'is_active': True
+                                    }
+                                )
+                                                            
+                                # Get appropriate recipient for source account (debit/withdrawal)
+                                source_recipient_type, source_recipient_member = source_account.get_appropriate_recipient()
+                                
+                                # 1. Create the withdrawal transaction (expense)
+                                withdrawal = transaction_form.save(commit=False)
+                                withdrawal.tax_household = household
+                                withdrawal.transaction_type = 'expense'
+                                withdrawal.category = transfer_category
+                                withdrawal.payment_method = bank_transfer_method
+                                withdrawal.recipient_type = source_recipient_type  # Set based on source account ownership
+                                withdrawal.recipient_member = source_recipient_member
+                                withdrawal.description = f"{withdrawal.description} (to {destination_account.name})"
+                                withdrawal.is_transfer = True  # Mark as transfer
+                                withdrawal.save()
+                                
+                                # Get appropriate recipient for destination account
+                                recipient_type, recipient_member = destination_account.get_appropriate_recipient()
+                                
+                                # 2. Create the deposit transaction (income)
+                                deposit = Transaction(
+                                    tax_household=household,
+                                    date=transaction_form.cleaned_data['date'],
+                                    description=f"{transaction_form.cleaned_data['description']} (from {source_account.name})",
+                                    category=transfer_category,
+                                    amount=transaction_form.cleaned_data['amount'],
+                                    account=destination_account,
+                                    payment_method=bank_transfer_method, 
+                                    transaction_type='income',
+                                    recipient_type=recipient_type,  # Set based on destination account ownership
+                                    recipient_member=recipient_member,
+                                    is_recurring=False,  # Transfers can't be recurring yet
+                                    is_transfer=True     # Mark as transfer
+                                )
+                                deposit.save()
+                                
+                                # 3. Link the paired transactions
+                                withdrawal.paired_transaction = deposit
+                                withdrawal.save()
+                                deposit.paired_transaction = withdrawal
+                                deposit.save()
+                                
+                                print(f"DASHBOARD DEBUG - Created linked transfer transactions: {withdrawal.id} <-> {deposit.id}")
+                            
+                            messages.success(request, _("Transfer transaction created successfully."))
+                            return redirect('dashboard')
+                        except Exception as e:
+                            print(f"DASHBOARD DEBUG - Error saving transfer: {e}")
+                            messages.error(request, _("Error creating transfer transaction."))
+                    else:
+                        # Regular transaction (non-transfer)
+                        # Create and save transaction
+                        transaction = transaction_form.save(commit=False)
+                        transaction.tax_household = household
+                        
+                        try:
+                            transaction.save()
+                            print(f"DASHBOARD DEBUG - Transaction saved with ID: {transaction.id}")
+                            messages.success(request, _("Transaction created successfully."))
+                            return redirect('dashboard')
+                        except Exception as e:
+                            print(f"DASHBOARD DEBUG - Error saving: {e}")
+                            messages.error(request, _("Error creating transaction."))
                 else:
                     print("DASHBOARD DEBUG - Form is invalid")
                     print(f"DASHBOARD DEBUG - Form errors: {transaction_form.errors}")
@@ -1368,17 +1482,23 @@ def transaction_create(request):
                                 }
                             )
                                                         
+                            # Get appropriate recipient for source account (debit/withdrawal)
+                            source_recipient_type, source_recipient_member = source_account.get_appropriate_recipient()
+                            
                             # 1. Create the withdrawal transaction (expense)
                             withdrawal = form.save(commit=False)
                             withdrawal.tax_household = household
                             withdrawal.transaction_type = 'expense'
                             withdrawal.category = transfer_category
                             withdrawal.payment_method = bank_transfer_method
-                            withdrawal.recipient_type = 'family' # Default to family for transfers
-                            withdrawal.recipient_member = None
+                            withdrawal.recipient_type = source_recipient_type  # Set based on source account ownership
+                            withdrawal.recipient_member = source_recipient_member
                             withdrawal.description = f"{withdrawal.description} (to {destination_account.name})"
                             withdrawal.is_transfer = True  # Mark as transfer
                             withdrawal.save()
+                            
+                            # Get appropriate recipient for destination account
+                            recipient_type, recipient_member = destination_account.get_appropriate_recipient()
                             
                             # 2. Create the deposit transaction (income)
                             deposit = Transaction(
@@ -1390,8 +1510,8 @@ def transaction_create(request):
                                 account=destination_account,
                                 payment_method=bank_transfer_method, 
                                 transaction_type='income',
-                                recipient_type='family',  # Default to family for transfers
-                                recipient_member=None,
+                                recipient_type=recipient_type,  # Set based on destination account ownership
+                                recipient_member=recipient_member,
                                 is_recurring=False,  # Transfers can't be recurring yet
                                 is_transfer=True     # Mark as transfer
                             )
@@ -1518,10 +1638,8 @@ def transaction_update(request, pk):
                 post_data = request.POST.copy()
                 post_data['is_transfer'] = 'on'  # Ensure it's marked as a transfer
                 
-                # Set recipient to family for transfers
-                post_data['recipient'] = 'family'
-                post_data['recipient_type'] = 'family'
-                post_data['recipient_member'] = ''
+                # Leave the recipient fields in POST data as they were submitted
+                # They will be set appropriately when the transactions are updated
                 
                 form = TransactionForm(post_data, household=household)
                 
@@ -1556,11 +1674,19 @@ def transaction_update(request, pk):
                     # Start a database transaction to ensure both updates are atomic
                     from django.db import transaction as db_transaction
                     with db_transaction.atomic():
+                        # Get appropriate recipient for source account (withdrawal)
+                        source_recipient_type, source_recipient_member = source_account.get_appropriate_recipient()
+                        
+                        # Get appropriate recipient for destination account (deposit)
+                        dest_recipient_type, dest_recipient_member = destination_account.get_appropriate_recipient()
+                        
                         # Update withdrawal
                         withdrawal.date = date
                         withdrawal.description = f"{description} (to {destination_account.name})"
                         withdrawal.amount = amount
                         withdrawal.account = source_account
+                        withdrawal.recipient_type = source_recipient_type
+                        withdrawal.recipient_member = source_recipient_member
                         withdrawal.save()
                         
                         # Update deposit
@@ -1568,6 +1694,8 @@ def transaction_update(request, pk):
                         deposit.description = f"{description} (from {source_account.name})"
                         deposit.amount = amount
                         deposit.account = destination_account
+                        deposit.recipient_type = dest_recipient_type
+                        deposit.recipient_member = dest_recipient_member
                         deposit.save()
                     
                     messages.success(request, _("Transfer updated successfully."))
@@ -1769,10 +1897,8 @@ def transaction_duplicate(request, pk):
                 post_data = request.POST.copy()
                 post_data['is_transfer'] = 'on'  # Ensure it's marked as a transfer
                 
-                # Set recipient to family for transfers
-                post_data['recipient'] = 'family'
-                post_data['recipient_type'] = 'family'
-                post_data['recipient_member'] = ''
+                # Leave the recipient fields in POST data as they were submitted
+                # They will be set appropriately when the transactions are created
                 
                 form = TransactionForm(post_data, household=household)
                 
@@ -1812,6 +1938,10 @@ def transaction_duplicate(request, pk):
                                     messages.error(request, _("Bank Transfer payment method not found."))
                                     return redirect('transaction_list')
                                 
+                                # Get appropriate recipient for source and destination accounts
+                                source_recipient_type, source_recipient_member = source_account.get_appropriate_recipient()
+                                dest_recipient_type, dest_recipient_member = destination_account.get_appropriate_recipient()
+                                
                                 # 1. Create the withdrawal transaction (expense)
                                 withdrawal = Transaction(
                                     tax_household=household,
@@ -1822,8 +1952,8 @@ def transaction_duplicate(request, pk):
                                     account=source_account,
                                     payment_method=bank_transfer_method,
                                     transaction_type='expense',
-                                    recipient_type='family',
-                                    recipient_member=None,
+                                    recipient_type=source_recipient_type,
+                                    recipient_member=source_recipient_member,
                                     is_recurring=False,
                                     is_transfer=True
                                 )
@@ -1839,8 +1969,8 @@ def transaction_duplicate(request, pk):
                                     account=destination_account,
                                     payment_method=bank_transfer_method, 
                                     transaction_type='income',
-                                    recipient_type='family',
-                                    recipient_member=None,
+                                    recipient_type=dest_recipient_type,
+                                    recipient_member=dest_recipient_member,
                                     is_recurring=False,
                                     is_transfer=True
                                 )

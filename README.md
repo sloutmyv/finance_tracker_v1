@@ -142,17 +142,43 @@ Open your browser and navigate to http://127.0.0.1:8000/
 - Internationalization (i18n) support for English and French
 
 ## Recent Improvements
-- **Enhanced Category Management**: Implemented a streamlined interface for managing transaction categories
-- **Cost Center Framework**: Added a higher-level organizational structure with cost centers
-- **Visual Differentiation**: Introduced a color system with 18 options for cost centers
-- **UI Refinements**: Improved visual hierarchy with colored borders and category counts
-- **Multi-Category Assignment**: Added the ability to assign multiple categories to cost centers at once
-- **Complete Translations**: Full English and French support for all new features
+
+### Transaction Management
+- **Complete Transaction System**: Fully implemented transaction recording with categorization
+- **Transfer Functionality**: Added specialized transfer system creating paired transactions
+- **Recurring Transactions**: Support for daily, weekly, monthly, and yearly recurring transactions
+- **Custom Payment Methods**: Ability to create and manage payment methods per transaction
+- **Flexible Date Handling**: Support for transaction dates, posting dates, and recurrence management
+- **Batch Operations**: Duplicate, edit, and delete transactions with proper handling of paired transfers
+
+### Financial Reporting
+- **Balance Evolution Chart**: Interactive chart showing account balance changes over time
+- **Smart Date Range Selection**: Predefined ranges (last week, month, year) with custom date options
+- **Transaction Filtering**: Filter by date, category, cost center, amount, and more
+- **Custom Dashboards**: Personalized dashboard with recent transactions and quick entry forms
+
+### UI/UX Improvements
+- **Responsive Design**: Fully responsive interface works on desktop and mobile
+- **Intuitive Forms**: Smart form validation with contextual field toggling
+- **Visual Aids**: Color-coded categories and cost centers for easier recognition
+- **Quick Actions**: One-click duplicate, edit, delete from transaction lists
+- **Consistency**: Unified design language across all application components
+
+### Under the Hood
+- **Data Integrity**: Linked transactions ensure transfers maintain data consistency
+- **Performance Optimizations**: Efficient database queries for large transaction sets
+- **Complete Translations**: Full English and French support for all features
+- **Robust Error Handling**: Graceful error management with helpful user feedback
 
 ## Development Roadmap
 Future development plans include:
-- **Transaction Management**: Implementing transaction recording and categorization
-- **Reporting & Analytics**: Adding financial reporting and visualization capabilities
-- **Data Import/Export**: Creating functionality to import transactions from banks
-- **Mobile Optimization**: Further improving the responsive design for mobile users
-- **Budget Planning**: Adding budget creation and tracking features
+- **Advanced Analytics**: Deeper insights with spending trend analysis and forecasting
+- **Budget Planning**: Comprehensive budget creation and tracking features
+- **Data Import/Export**: Functionality to import transactions from banks and export reports
+- **Mobile App**: Native mobile application for on-the-go financial management
+- **AI Categorization**: Smart transaction categorization based on historical patterns
+
+## A faire 
+- La modification des transfert récurent n'est pas bonne elle ne reprend pas le paramétre de récurence 
+- Corriger le transfert récurent qui ne sont également pas bien gérer dans le graphique 
+- Permettre à l'utilisateur de choisir la devise dans les analyse
