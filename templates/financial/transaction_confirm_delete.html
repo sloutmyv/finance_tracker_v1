@@ -39,7 +39,17 @@
                             <dd class="col-sm-8">{{ source_transaction.date|date:"d/m/y" }}</dd>
                             
                             <dt class="col-sm-4">{% translate_json "Description" %}</dt>
-                            <dd class="col-sm-8">{{ source_transaction.description|truncatechars:40 }}</dd>
+                            <dd class="col-sm-8">
+                                {{ source_transaction.clean_description|truncatechars:40 }}
+                                <span class="badge bg-secondary badge-sm ms-1" title="{% translate_json 'Transfer' %}">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                </span>
+                                {% if source_transaction.is_recurring %}
+                                    <span class="badge bg-info badge-sm ms-1" title="{% translate_json 'Recurring transaction' %}">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </span>
+                                {% endif %}
+                            </dd>
                             
                             <dt class="col-sm-4">{% translate_json "Amount" %}</dt>
                             <dd class="col-sm-8" class="text-danger">{{ source_transaction.amount }}</dd>
@@ -84,7 +94,23 @@
                             <dd class="col-sm-8">{{ transaction.date|date:"d/m/y" }}</dd>
                             
                             <dt class="col-sm-4">{% translate_json "Description" %}</dt>
-                            <dd class="col-sm-8">{{ transaction.description }}</dd>
+                            <dd class="col-sm-8">
+                                {{ transaction.clean_description }}
+                                {% if transaction.is_transfer %}
+                                    <span class="badge bg-secondary badge-sm ms-1" title="{% translate_json 'Transfer' %}">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                    </span>
+                                {% endif %}
+                                {% if transaction.is_recurring %}
+                                    <span class="badge bg-info badge-sm ms-1" title="{% translate_json 'Recurring transaction' %}">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </span>
+                                {% elif transaction.id|stringformat:"s" and "-" in transaction.id|stringformat:"s" %}
+                                    <span class="badge bg-info badge-sm ms-1" title="{% translate_json 'Recurring transaction instance' %}">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </span>
+                                {% endif %}
+                            </dd>
                             
                             <dt class="col-sm-4">{% translate_json "Category" %}</dt>
                             <dd class="col-sm-8">{{ transaction.category.name }}</dd>

@@ -179,6 +179,5 @@ Future development plans include:
 - **AI Categorization**: Smart transaction categorization based on historical patterns
 
 ## A faire 
-- La modification des transfert récurent n'est pas bonne elle ne reprend pas le paramétre de récurence 
-- Corriger le transfert récurent qui ne sont également pas bien gérer dans le graphique 
 - Permettre à l'utilisateur de choisir la devise dans les analyse
+- Corriger la création automatique des catégories et centre de coute transfert 

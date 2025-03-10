@@ -106,7 +106,13 @@
                             <tr>
                                 <td>{{ transaction.date|date:"d/m/y" }}</td>
                                 <td>
-                                    {{ transaction.description }}
+                                    {{ transaction.clean_description }}
+                                    {% if transaction.is_transfer %}
+                                        <!-- Transfer transaction -->
+                                        <span class="badge bg-secondary badge-sm ms-1" title="{% translate_json 'Transfer' %}">
+                                            <i class="bi bi-arrow-left-right"></i>
+                                        </span>
+                                    {% endif %}
                                     {% if transaction.is_recurring %}
                                         <!-- Recurring transaction parent/template -->
                                         <span class="badge bg-info badge-sm ms-1" title="{% translate_json 'Recurring transaction' %}">

@@ -49,6 +49,7 @@ urlpatterns = [
     # Transaction URLs
     path('transactions/', views.transaction_list, name='transaction_list'),
     path('transactions/recurring/', views.recurring_transaction_list, name='recurring_transaction_list'),
+    path('transactions/recurring-transfers/', views.recurring_transfer_list, name='recurring_transfer_list'),
     path('transaction/create/', views.transaction_create, name='transaction_create'),
     path('transaction/<int:pk>/update/', views.transaction_update, name='transaction_update'),
     path('transaction/<int:pk>/delete/', views.transaction_delete, name='transaction_delete'),

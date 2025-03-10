@@ -109,52 +109,51 @@
                     
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="{{ form.account.id_for_label }}" class="form-label">
-                                <span id="account_label">{% translate_json "Account" %}</span>*
-                            </label>
-                            {{ form.account }}
-                            {% if form.account.errors %}
-                                <div class="text-danger">{{ form.account.errors }}</div>
-                            {% endif %}
+                            <div class="payment-field-wrapper">
+                                <label for="{{ form.account.id_for_label }}" class="form-label">
+                                    <span id="account_label">{% translate_json "Account" %}</span>*
+                                </label>
+                                {{ form.account }}
+                                {% if form.account.errors %}
+                                    <div class="text-danger">{{ form.account.errors }}</div>
+                                {% endif %}
+                            </div>
                         </div>
                         
                         <div id="destination_account_container" class="col-md-6" style="display: none;">
-                            <label for="{{ form.destination_account.id_for_label }}" class="form-label">
-                                {% translate_json "Destination Account" %}*
-                            </label>
-                            {{ form.destination_account }}
-                            {% if form.destination_account.errors %}
-                                <div class="text-danger">{{ form.destination_account.errors }}</div>
-                            {% endif %}
+                            <div class="payment-field-wrapper">
+                                <label for="{{ form.destination_account.id_for_label }}" class="form-label">
+                                    {% translate_json "Destination Account" %}*
+                                </label>
+                                {{ form.destination_account }}
+                                {% if form.destination_account.errors %}
+                                    <div class="text-danger">{{ form.destination_account.errors }}</div>
+                                {% endif %}
+                            </div>
                         </div>
                         
                         <div id="regular_payment_fields" class="col-md-6">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <div class="payment-field-wrapper">
-                                        <label for="{{ form.payment_method.id_for_label }}" class="form-label">
-                                            {% translate_json "Payment Method" %}*
-                                        </label>
-                                        {{ form.payment_method }}
-                                        {% if form.payment_method.errors %}
-                                            <div class="text-danger">{{ form.payment_method.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="recipient-field-wrapper">
-                                        <label for="{{ form.recipient.id_for_label }}" class="form-label">
-                                            {% translate_json "Recipient" %}
-                                        </label>
-                                        {{ form.recipient }}
-                                        {% if form.recipient.errors %}
-                                            <div class="text-danger">{{ form.recipient.errors }}</div>
-                                        {% endif %}
-                                        <small class="form-text text-muted">
-                                            {% translate_json "Select 'Family' or a specific member" %}
-                                        </small>
-                                    </div>
-                                </div>
+                            <!-- Payment method and recipient with improved responsive layout -->
+                            <div class="payment-field-wrapper mb-2">
+                                <label for="{{ form.payment_method.id_for_label }}" class="form-label">
+                                    {% translate_json "Payment Method" %}*
+                                </label>
+                                {{ form.payment_method }}
+                                {% if form.payment_method.errors %}
+                                    <div class="text-danger">{{ form.payment_method.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="recipient-field-wrapper">
+                                <label for="{{ form.recipient.id_for_label }}" class="form-label">
+                                    {% translate_json "Recipient" %}
+                                </label>
+                                {{ form.recipient }}
+                                {% if form.recipient.errors %}
+                                    <div class="text-danger">{{ form.recipient.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    {% translate_json "Select 'Family' or a specific member" %}
+                                </small>
                             </div>
                             
                             <!-- Hidden fields -->

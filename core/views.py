@@ -191,7 +191,10 @@ def dashboard(request):
                                     transaction_type='income',
                                     recipient_type=recipient_type,  # Set based on destination account ownership
                                     recipient_member=recipient_member,
-                                    is_recurring=False,  # Transfers can't be recurring yet
+                                    is_recurring=withdrawal.is_recurring,  # Copy recurring setting from withdrawal transaction
+                                    recurrence_period=withdrawal.recurrence_period,  # Copy recurrence period
+                                    recurrence_start_date=withdrawal.recurrence_start_date,  # Copy start date
+                                    recurrence_end_date=withdrawal.recurrence_end_date,  # Copy end date
                                     is_transfer=True     # Mark as transfer
                                 )
                                 deposit.save()
@@ -435,7 +438,17 @@ def calculate_balance_evolution(account, start_date, end_date):
     # Generate recurring transaction instances for the entire period
     # This ensures we capture all instances that might affect the balance
     all_recurring_instances = []
+    processed_recurring_transfers = set()  # Track processed recurring transfers to avoid duplicates
+    
     for txn in recurring_transactions:
+        # Skip paired transactions that are already processed
+        if txn.is_transfer and txn.paired_transaction_id:
+            # Create a unique key for this transfer pair
+            transfer_pair_key = tuple(sorted([txn.id, txn.paired_transaction_id]))
+            if transfer_pair_key in processed_recurring_transfers:
+                continue
+            processed_recurring_transfers.add(transfer_pair_key)
+        
         instances = txn.generate_recurring_instances(current_date=end_date)
         all_recurring_instances.extend(instances)
     
@@ -443,6 +456,9 @@ def calculate_balance_evolution(account, start_date, end_date):
     all_transactions = list(base_transactions)
     
     # Add recurring instances, ensuring we don't double count
+    # Track processed instances of paired transactions
+    processed_instance_pairs = set()
+    
     for instance in all_recurring_instances:
         # Only include instances that aren't already in the base transactions
         # (the first instance is often the same as the base transaction)
@@ -450,6 +466,25 @@ def calculate_balance_evolution(account, start_date, end_date):
         instance_date = instance.date
         instance_amount = instance.amount
         
+        # Skip instance if it's part of a transfer pair we've already processed
+        if hasattr(instance, 'paired_transaction') and instance.paired_transaction:
+            if hasattr(instance, '_instance_date'):
+                instance_date_str = instance._instance_date.strftime('%Y%m%d')
+                
+                # Create a unique key for this instance pair
+                if hasattr(instance, '_recurring_parent') and hasattr(instance.paired_transaction, '_recurring_parent'):
+                    parent_ids = tuple(sorted([
+                        instance._recurring_parent.id, 
+                        instance.paired_transaction._recurring_parent.id
+                    ]))
+                    pair_key = (parent_ids, instance_date_str)
+                    
+                    if pair_key in processed_instance_pairs:
+                        continue  # Skip this instance as its pair was already processed
+                    
+                    processed_instance_pairs.add(pair_key)
+        
+        # Check if the instance is already in base transactions
         for base_txn in base_transactions:
             if (base_txn.date == instance_date and 
                 base_txn.amount == instance_amount and
@@ -463,10 +498,28 @@ def calculate_balance_evolution(account, start_date, end_date):
     # Sort transactions by date
     all_transactions.sort(key=lambda x: x.date)
     
-    # For debugging, print all transaction dates
-    print(f"DEBUG - All transactions in date order:")
+    # For debugging, print all transaction dates with more details
+    print(f"DEBUG - All transactions in date order (total: {len(all_transactions)}):")
     for idx, tx in enumerate(all_transactions):
-        print(f"  {idx+1}. Date: {tx.date}, Type: {tx.transaction_type}, Amount: {tx.amount}")
+        transfer_info = ""
+        recurring_info = ""
+        
+        if tx.is_transfer:
+            if hasattr(tx, 'paired_transaction') and tx.paired_transaction:
+                paired_id = tx.paired_transaction.id if hasattr(tx.paired_transaction, 'id') else 'unknown'
+                transfer_info = f", Transfer pair: {paired_id}"
+            else:
+                transfer_info = ", Transfer (unpaired)"
+        
+        if hasattr(tx, '_is_generated') and tx._is_generated:
+            recurring_info = ", Recurring instance"
+            if hasattr(tx, '_recurring_parent'):
+                parent_id = tx._recurring_parent.id
+                recurring_info += f" (parent: {parent_id})"
+        elif tx.is_recurring:
+            recurring_info = ", Recurring parent"
+            
+        print(f"  {idx+1}. Date: {tx.date}, Type: {tx.transaction_type}, Amount: {tx.amount}{transfer_info}{recurring_info}")
     
     # If we need to show balance before the recorded balance date, we need to work backwards
     if start_date < initial_balance_date:
@@ -1358,12 +1411,13 @@ def transaction_list(request):
 
 @login_required
 def recurring_transaction_list(request):
-    """View to display recurring transactions templates only"""
+    """View to display non-transfer recurring transactions"""
     try:
         household = request.user.tax_household
         recurring_transactions = Transaction.objects.filter(
             tax_household=household,
-            is_recurring=True
+            is_recurring=True,
+            is_transfer=False  # Only include non-transfers
         ).order_by('-date', '-created_at')
         
         context = {
@@ -1373,6 +1427,36 @@ def recurring_transaction_list(request):
         }
         
         return render(request, 'financial/recurring_transaction_list.html', context)
+    
+    except TaxHousehold.DoesNotExist:
+        messages.warning(request, _("You need to set up your financial environment first."))
+        return redirect('dashboard')
+
+@login_required
+def recurring_transfer_list(request):
+    """View to display recurring transfers"""
+    try:
+        household = request.user.tax_household
+        
+        # Get all recurring transfers (withdrawal side only)
+        recurring_transfers = Transaction.objects.filter(
+            tax_household=household,
+            is_recurring=True,
+            is_transfer=True,
+            transaction_type='expense'  # Only get the withdrawal side of each transfer
+        ).select_related(
+            'account', 
+            'paired_transaction',
+            'paired_transaction__account'
+        ).order_by('-date', '-created_at')
+        
+        context = {
+            'transfers': recurring_transfers,
+            'is_recurring_view': True,
+            'show_recurrence_details': True,
+        }
+        
+        return render(request, 'financial/recurring_transfer_list.html', context)
     
     except TaxHousehold.DoesNotExist:
         messages.warning(request, _("You need to set up your financial environment first."))
@@ -1512,7 +1596,10 @@ def transaction_create(request):
                                 transaction_type='income',
                                 recipient_type=recipient_type,  # Set based on destination account ownership
                                 recipient_member=recipient_member,
-                                is_recurring=False,  # Transfers can't be recurring yet
+                                is_recurring=withdrawal.is_recurring,  # Copy recurring setting from withdrawal transaction
+                                recurrence_period=withdrawal.recurrence_period,  # Copy recurrence period
+                                recurrence_start_date=withdrawal.recurrence_start_date,  # Copy start date
+                                recurrence_end_date=withdrawal.recurrence_end_date,  # Copy end date
                                 is_transfer=True     # Mark as transfer
                             )
                             deposit.save()
@@ -1602,10 +1689,14 @@ def transaction_update(request, pk):
             initial_data = {
                 'is_transfer': True,
                 'date': withdrawal.date,
-                'description': withdrawal.description.split(' (to ')[0],  # Remove the " (to X)" suffix
+                'description': withdrawal.description,
                 'amount': withdrawal.amount,
                 'account': withdrawal.account.id,  # Source account
-                'destination_account': deposit.account.id  # Destination account
+                'destination_account': deposit.account.id,  # Destination account
+                'is_recurring': withdrawal.is_recurring,
+                'recurrence_period': withdrawal.recurrence_period,
+                'recurrence_start_date': withdrawal.recurrence_start_date,
+                'recurrence_end_date': withdrawal.recurrence_end_date
             }
             
             # Create a form pre-filled with transfer data
@@ -1680,23 +1771,55 @@ def transaction_update(request, pk):
                         # Get appropriate recipient for destination account (deposit)
                         dest_recipient_type, dest_recipient_member = destination_account.get_appropriate_recipient()
                         
-                        # Update withdrawal
+                        # Get recurring fields from form
+                        is_recurring = form.cleaned_data.get('is_recurring', False)
+                        recurrence_period = form.cleaned_data.get('recurrence_period', '')
+                        recurrence_start_date = form.cleaned_data.get('recurrence_start_date')
+                        recurrence_end_date = form.cleaned_data.get('recurrence_end_date')
+                        
+                        # Update withdrawal (expense) side of the transfer
                         withdrawal.date = date
-                        withdrawal.description = f"{description} (to {destination_account.name})"
+                        # Update description with new destination account name
+                        clean_desc = description.split(" (to ")[0]  # Remove any existing account info
+                        withdrawal.description = f"{clean_desc} (to {destination_account.name})"
                         withdrawal.amount = amount
                         withdrawal.account = source_account
                         withdrawal.recipient_type = source_recipient_type
                         withdrawal.recipient_member = source_recipient_member
+                        withdrawal.is_recurring = is_recurring
+                        withdrawal.recurrence_period = recurrence_period
+                        withdrawal.recurrence_start_date = recurrence_start_date
+                        withdrawal.recurrence_end_date = recurrence_end_date
+                        withdrawal.category = transfer_category
+                        withdrawal.payment_method = bank_transfer_method
+                        withdrawal.transaction_type = 'expense'
+                        withdrawal.is_transfer = True
                         withdrawal.save()
                         
-                        # Update deposit
+                        # Update deposit (income) side of the transfer
                         deposit.date = date
-                        deposit.description = f"{description} (from {source_account.name})"
+                        # Update description with new source account name
+                        clean_desc = description.split(" (from ")[0]  # Remove any existing account info
+                        deposit.description = f"{clean_desc} (from {source_account.name})"
                         deposit.amount = amount
                         deposit.account = destination_account
                         deposit.recipient_type = dest_recipient_type
                         deposit.recipient_member = dest_recipient_member
+                        deposit.is_recurring = is_recurring
+                        deposit.recurrence_period = recurrence_period
+                        deposit.recurrence_start_date = recurrence_start_date
+                        deposit.recurrence_end_date = recurrence_end_date
+                        deposit.category = transfer_category
+                        deposit.payment_method = bank_transfer_method
+                        deposit.transaction_type = 'income'
+                        deposit.is_transfer = True
                         deposit.save()
+                        
+                        # Ensure paired_transaction links are correct
+                        withdrawal.paired_transaction = deposit
+                        withdrawal.save(update_fields=['paired_transaction'])
+                        deposit.paired_transaction = withdrawal
+                        deposit.save(update_fields=['paired_transaction'])
                     
                     messages.success(request, _("Transfer updated successfully."))
                     return redirect('transaction_list')
@@ -1886,10 +2009,14 @@ def transaction_duplicate(request, pk):
             initial_data = {
                 'is_transfer': True,
                 'date': timezone.now().date(),  # Set date to today
-                'description': withdrawal.description.split(' (to ')[0],  # Remove the " (to X)" suffix
+                'description': withdrawal.description,
                 'amount': withdrawal.amount,
                 'account': withdrawal.account.id,  # Source account
-                'destination_account': deposit.account.id  # Destination account
+                'destination_account': deposit.account.id,  # Destination account
+                'is_recurring': withdrawal.is_recurring,
+                'recurrence_period': withdrawal.recurrence_period,
+                'recurrence_start_date': withdrawal.recurrence_start_date,
+                'recurrence_end_date': withdrawal.recurrence_end_date
             }
             
             # For POST requests, handle transfer creation
@@ -1954,7 +2081,10 @@ def transaction_duplicate(request, pk):
                                     transaction_type='expense',
                                     recipient_type=source_recipient_type,
                                     recipient_member=source_recipient_member,
-                                    is_recurring=False,
+                                    is_recurring=form.cleaned_data.get('is_recurring', False),
+                                    recurrence_period=form.cleaned_data.get('recurrence_period', ''),
+                                    recurrence_start_date=form.cleaned_data.get('recurrence_start_date'),
+                                    recurrence_end_date=form.cleaned_data.get('recurrence_end_date'),
                                     is_transfer=True
                                 )
                                 withdrawal.save()
@@ -1971,7 +2101,10 @@ def transaction_duplicate(request, pk):
                                     transaction_type='income',
                                     recipient_type=dest_recipient_type,
                                     recipient_member=dest_recipient_member,
-                                    is_recurring=False,
+                                    is_recurring=form.cleaned_data.get('is_recurring', False),
+                                    recurrence_period=form.cleaned_data.get('recurrence_period', ''),
+                                    recurrence_start_date=form.cleaned_data.get('recurrence_start_date'),
+                                    recurrence_end_date=form.cleaned_data.get('recurrence_end_date'),
                                     is_transfer=True
                                 )
                                 deposit.save()

@@ -360,29 +360,50 @@ p {
 }
 
 /* Payment method and recipient fixes */
-.payment-field-wrapper {
+.payment-field-wrapper, .recipient-field-wrapper {
   width: 100%;
   display: flex;
   flex-direction: column;
   text-align: left;
 }
 
-.recipient-field-wrapper {
+/* Ensure form fields have consistent sizing */
+#regular_payment_fields .form-control,
+#regular_payment_fields .form-select,
+.col-md-6 > .payment-field-wrapper .form-control,
+.col-md-6 > .payment-field-wrapper .form-select {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-}
-
-/* Ensure selects have matching heights and style */
-select.form-select {
   text-align-last: left;
   min-height: 38px;
+  height: calc(1.5em + 0.75rem + 2px);
 }
 
-/* Mobile responsiveness adjustments */
+/* Make sure form elements with different labels are vertically aligned */
+.form-label {
+  margin-bottom: 0.5rem;
+  display: inline-block;
+  height: 1.5rem;
+}
+
+/* Specific fixes for payment/recipient fields alignment */
+#regular_payment_fields {
+  display: flex;
+  flex-direction: column;
+}
+
+#regular_payment_fields .payment-field-wrapper,
+#regular_payment_fields .recipient-field-wrapper {
+  width: 100%;
+}
+
+/* Mobile responsiveness adjustments - stack fields on smaller screens */
 @media (max-width: 768px) {
   .payment-field-wrapper, .recipient-field-wrapper {
+    margin-bottom: 15px;
+  }
+  
+  /* Make all grid columns stack at smaller sizes */
+  .col-md-6, .col-md-4, .col-md-8 {
     margin-bottom: 10px;
   }
 }

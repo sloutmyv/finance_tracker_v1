@@ -505,10 +505,10 @@ class TransactionForm(forms.ModelForm):
                         print(f"CRITICAL - Could not create any payment method: {fallback_error}")
                         # At this point, we have to let validation fail
             
-            # For transfers, we set recipient to family
-            cleaned_data['recipient'] = 'family'
-            cleaned_data['recipient_type'] = 'family'
-            cleaned_data['recipient_member'] = None
+            # For transfers, the recipient is determined by the account ownership
+            # The appropriate recipient will be set in the view based on the source and destination accounts
+            # We'll preserve the user's selection for now and let the view override it
+            pass
         else:
             # Process normal recipient selection
             recipient_choice = cleaned_data.get('recipient')
