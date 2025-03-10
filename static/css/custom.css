@@ -309,16 +309,17 @@ p {
 }
 
 /* Form Controls */
-.form-control {
+.form-control, .form-select {
   border-radius: 8px;
   border: 1px solid rgba(0,0,0,0.1);
   padding: 0.55rem 1rem;
   font-weight: 300;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
   font-size: 0.85rem;
+  text-align: left;
 }
 
-.form-control:focus {
+.form-control:focus, .form-select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 0.2rem rgba(91, 120, 167, 0.15);
 }
@@ -356,6 +357,34 @@ p {
   padding: 1rem 1.25rem;
   vertical-align: middle;
   border-top: none;
+}
+
+/* Payment method and recipient fixes */
+.payment-field-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.recipient-field-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+/* Ensure selects have matching heights and style */
+select.form-select {
+  text-align-last: left;
+  min-height: 38px;
+}
+
+/* Mobile responsiveness adjustments */
+@media (max-width: 768px) {
+  .payment-field-wrapper, .recipient-field-wrapper {
+    margin-bottom: 10px;
+  }
 }
 
 /* Text colors */

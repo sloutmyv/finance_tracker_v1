@@ -27,8 +27,9 @@
                             <tr>
                                 <th class="small">{% translate_json "Date" %}</th>
                                 <th class="small">{% translate_json "Description" %}</th>
-                                <th class="small">{% translate_json "Recipient" %}</th>
+                                <th class="small text-start">{% translate_json "Recipient" %}</th>
                                 <th class="small">{% translate_json "Acc" %}</th>
+                                <th class="small text-center">{% translate_json "Pay" %}</th>
                                 <th class="small text-end">{% translate_json "Amount" %}</th>
                                 <th class="small">{% translate_json "Freq" %}</th>
                                 <th class="small">{% translate_json "Start" %}</th>
@@ -65,7 +66,7 @@
                                         <i class="bi bi-arrow-repeat"></i>
                                     </span>
                                 </td>
-                                <td>
+                                <td class="text-start">
                                     {% if transaction.recipient_type == 'member' and transaction.recipient_member %}
                                         <span title="{{ transaction.recipient_member.first_name }} {{ transaction.recipient_member.last_name }}">
                                             {{ transaction.recipient_member.trigram }}
@@ -75,6 +76,13 @@
                                     {% endif %}
                                 </td>
                                 <td title="{{ transaction.account.name }}">{{ transaction.account.short_reference }}</td>
+                                <td class="text-center">
+                                    {% if transaction.payment_method.icon %}
+                                        <i class="bi {{ transaction.payment_method.icon }}" title="{{ transaction.payment_method.name }}"></i>
+                                    {% else %}
+                                        <span title="{{ transaction.payment_method.name }}">{{ transaction.payment_method.name|truncatechars:8 }}</span>
+                                    {% endif %}
+                                </td>
                                 <td class="text-end {% if transaction.transaction_type == 'expense' %}text-danger{% else %}text-success{% endif %}">
                                     {% if transaction.transaction_type == 'expense' %}-{% endif %}{{ transaction.amount }}
                                 </td>
