@@ -154,6 +154,25 @@
                                 
                                 <li><hr class="dropdown-divider"></li>
                                 
+                                <!-- Currency Selection -->
+                                <li>
+                                    <span class="dropdown-header">{% translate_json "Display Currency" %}</span>
+                                </li>
+                                {% for currency_code, currency_name in supported_currencies %}
+                                <li>
+                                    <form action="{% url 'set_currency' %}" method="post" style="display:inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="currency" value="{{ currency_code }}">
+                                        <input type="hidden" name="next" value="{{ request.path }}">
+                                        <button type="submit" class="dropdown-item {% if selected_currency == currency_code %}active{% endif %}">
+                                            {{ currency_name }}
+                                        </button>
+                                    </form>
+                                </li>
+                                {% endfor %}
+                                
+                                <li><hr class="dropdown-divider"></li>
+                                
                                 <li><a class="dropdown-item" href="{% url 'logout' %}">{% translate_json "Logout" %}</a></li>
                             </ul>
                         </li>

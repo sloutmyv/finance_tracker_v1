@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 from django.db import transaction
 from django.utils.translation import get_language, gettext_lazy as _
 from django.utils import timezone
@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import json
 
 from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, TransactionCategory, CostCenter, Transaction, PaymentMethod
+from .utils.currency import CurrencyExchangeService
 from .forms import TaxHouseholdForm, HouseholdMemberForm, HouseholdMemberFormSet, BankAccountForm, TransactionCategoryForm, CostCenterForm, TransactionForm
 
 def home(request):
@@ -374,6 +375,7 @@ def balance_evolution(request):
     # Handle AJAX request for chart data
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         account_id = request.GET.get('account_id')
+        display_currency = request.GET.get('display_currency', request.session.get('currency', 'EUR'))
         
         if not account_id:
             return JsonResponse({'error': 'Account ID is required'}, status=400)
@@ -383,28 +385,37 @@ def balance_evolution(request):
         except BankAccount.DoesNotExist:
             return JsonResponse({'error': 'Account not found'}, status=404)
         
-        # Get balance evolution data
-        balance_data = calculate_balance_evolution(account, start_date, end_date)
+        # Get balance evolution data with the selected display currency
+        balance_data = calculate_balance_evolution(account, start_date, end_date, display_currency)
         
         return JsonResponse(balance_data)
     
     # For regular page request, render the template
     context = {
         'bank_accounts': bank_accounts,
-        'selected_account_id': selected_account_id or (bank_accounts.first().id if bank_accounts.exists() else None),
         'start_date': start_date.strftime('%Y-%m-%d'),
         'end_date': end_date.strftime('%Y-%m-%d'),
     }
     
     return render(request, 'reporting/balance_evolution.html', context)
 
-def calculate_balance_evolution(account, start_date, end_date):
+def calculate_balance_evolution(account, start_date, end_date, display_currency=None):
     """
     Calculate balance evolution for a specific account over a time period.
     Returns data formatted for a chart.
+    
+    Args:
+        account: The BankAccount to analyze
+        start_date: The start date for the chart
+        end_date: The end date for the chart
+        display_currency: The currency to display amounts in (defaults to account's currency)
     """
     # Import Decimal for consistent financial calculations
     from decimal import Decimal
+    
+    # If no display currency specified, use the account's currency
+    if not display_currency:
+        display_currency = account.currency
     
     # Get the initial balance (starting point)
     initial_balance = account.balance
@@ -618,12 +629,32 @@ def calculate_balance_evolution(account, start_date, end_date):
     
     print(f"DEBUG - Generated {data_point_count} data points for the chart")
     
+    # Convert balances to display currency if needed
+    converted_balances = balances
+    if display_currency != account.currency:
+        try:
+            print(f"DEBUG - Converting from {account.currency} to {display_currency}")
+            converted_balances = []
+            for balance in balances:
+                # Convert each balance point to the display currency
+                converted_amount = CurrencyExchangeService.convert_currency(
+                    Decimal(str(balance)), 
+                    account.currency, 
+                    display_currency
+                )
+                converted_balances.append(float(converted_amount) if converted_amount else balance)
+        except Exception as e:
+            # Log the error and fall back to original values
+            print(f"ERROR - Failed to convert currency: {e}")
+            # Keep using original balances
+    
     # Return properly formatted data for the chart
     return {
         'dates': dates,
-        'balances': balances,
+        'balances': converted_balances,
         'account_name': account.name,
-        'currency': account.currency
+        'currency': display_currency,  # Use display currency here
+        'original_currency': account.currency
     }
 
 # Financial Environment Views
@@ -2210,3 +2241,23 @@ def transaction_duplicate(request, pk):
     except TaxHousehold.DoesNotExist:
         messages.warning(request, _("You need to set up your financial environment first."))
         return redirect('dashboard')
+@login_required
+def set_currency(request):
+    """View to set the display currency for reports and analyses"""
+    # Get the currency from POST data
+    if request.method == 'POST':
+        currency = request.POST.get('currency')
+        next_url = request.POST.get('next', '/')
+        
+        # Validate the currency is supported
+        valid_currencies = [code for code, name in CurrencyExchangeService.SUPPORTED_CURRENCIES]
+        if currency in valid_currencies:
+            # Store in session
+            request.session['currency'] = currency
+            messages.success(request, _("Display currency changed to {}").format(currency))
+        
+        # Redirect back to the page the user was on
+        return HttpResponseRedirect(next_url)
+    
+    # If not POST, redirect to home
+    return HttpResponseRedirect('/')

@@ -78,6 +78,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.i18n',  # Add i18n context processor
                 'core.context_processors.language_context',  # Our custom context processor
+                'core.context_processors.currency_context',  # Currency context processor
             ],
         },
     },

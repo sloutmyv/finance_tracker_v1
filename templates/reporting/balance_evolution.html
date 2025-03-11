@@ -39,47 +39,20 @@
                             <div class="row">
                                 <div class="col-md-12 mb-3">
                                     <h5>{% translate_json "Account Selection" %}</h5>
-                                    <div class="d-flex align-items-center mb-2">
-                                        <div class="form-check form-switch me-3">
-                                            <input class="form-check-input" type="checkbox" id="show-all-accounts">
-                                            <label class="form-check-label" for="show-all-accounts">
-                                                {% translate_json "Show all accounts" %}
-                                            </label>
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="overlay-graphs">
-                                            <label class="form-check-label" for="overlay-graphs">
-                                                {% translate_json "Overlay graphs" %}
-                                            </label>
-                                        </div>
-                                    </div>
                                     
-                                    <div id="single-account-select">
-                                        <select class="form-select" id="account" name="account">
-                                            {% for account in bank_accounts %}
-                                                <option value="{{ account.id }}" 
-                                                    {% if account.id|stringformat:"s" == selected_account_id|stringformat:"s" %}selected{% endif %}
-                                                >
+                                    <div class="account-checkboxes mt-2">
+                                        {% for account in bank_accounts %}
+                                            <div class="form-check">
+                                                <input class="form-check-input account-checkbox" type="checkbox" 
+                                                       id="account-{{ account.id }}" value="{{ account.id }}"
+                                                       data-account-name="{{ account.name }}" 
+                                                       data-account-ref="{{ account.reference }}"
+                                                       checked>
+                                                <label class="form-check-label" for="account-{{ account.id }}">
                                                     {{ account.name }} ({{ account.reference }})
-                                                </option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    
-                                    <div id="multi-account-select" class="d-none">
-                                        <div class="account-checkboxes mt-2">
-                                            {% for account in bank_accounts %}
-                                                <div class="form-check">
-                                                    <input class="form-check-input account-checkbox" type="checkbox" 
-                                                           id="account-{{ account.id }}" value="{{ account.id }}"
-                                                           data-account-name="{{ account.name }}" 
-                                                           data-account-ref="{{ account.reference }}">
-                                                    <label class="form-check-label" for="account-{{ account.id }}">
-                                                        {{ account.name }} ({{ account.reference }})
-                                                    </label>
-                                                </div>
-                                            {% endfor %}
-                                        </div>
+                                                </label>
+                                            </div>
+                                        {% endfor %}
                                     </div>
                                 </div>
                                 
@@ -97,7 +70,20 @@
                                                value="{{ end_date }}">
                                     </div>
                                 </div>
-                                <div class="col-md-4 d-flex align-items-end">
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label for="display_currency">{% translate_json "Display Currency" %}</label>
+                                        <select class="form-select" id="display_currency" name="display_currency">
+                                            {% for currency_code, currency_name in supported_currencies %}
+                                                <option value="{{ currency_code }}" {% if currency_code == selected_currency %}selected{% endif %}>
+                                                    {{ currency_name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-2 d-flex align-items-end">
                                     <button type="submit" class="btn btn-primary w-100">
                                         {% translate_json "Apply" %}
                                     </button>
@@ -140,69 +126,14 @@
         }).format(value);
     }
     
-    // Function to toggle between single and multiple account selection
-    function toggleAccountSelection() {
-        const showAll = document.getElementById('show-all-accounts').checked;
-        const singleSelect = document.getElementById('single-account-select');
-        const multiSelect = document.getElementById('multi-account-select');
-        
-        if (showAll) {
-            singleSelect.classList.add('d-none');
-            multiSelect.classList.remove('d-none');
-            
-            // Check all accounts by default when switching to multi-select
-            document.querySelectorAll('.account-checkbox').forEach(checkbox => {
-                checkbox.checked = true;
-            });
-        } else {
-            singleSelect.classList.remove('d-none');
-            multiSelect.classList.add('d-none');
-        }
-    }
-    
-    // Function to load chart data for a single account
-    function loadSingleAccountData() {
-        const accountId = document.getElementById('account').value;
-        const startDate = document.getElementById('start_date').value;
-        const endDate = document.getElementById('end_date').value;
-        
-        // Show loading indication
-        document.getElementById('balanceChart').style.opacity = 0.5;
-        
-        // Make AJAX request to get data
-        return fetch(`{% url 'balance_evolution' %}?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}`, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            // Restore opacity
-            document.getElementById('balanceChart').style.opacity = 1;
-            
-            // Create or update chart with single account data
-            createSingleAccountChart(data);
-            
-            return data;
-        })
-        .catch(error => {
-            console.error('Error fetching chart data:', error);
-            document.getElementById('balanceChart').style.opacity = 1;
-            alert('Error loading chart data. Please try again.');
-        });
-    }
+    // Function to load chart data for multiple accounts
+    // (Removed single account and toggle functions since we always show all accounts now)
     
     // Function to load data for multiple accounts
     async function loadMultipleAccountsData() {
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
-        const overlay = document.getElementById('overlay-graphs').checked;
+        // Removed overlay option - always use comparison mode (not overlay)
         
         // Get all checked accounts
         const checkedAccounts = Array.from(
@@ -222,7 +153,8 @@
             const accountDataPromises = checkedAccounts.map(checkbox => {
                 const accountId = checkbox.value;
                 
-                return fetch(`{% url 'balance_evolution' %}?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}`, {
+                const displayCurrency = document.getElementById('display_currency').value;
+                return fetch(`{% url 'balance_evolution' %}?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}&display_currency=${displayCurrency}`, {
                     method: 'GET',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
@@ -243,7 +175,7 @@
             document.getElementById('balanceChart').style.opacity = 1;
             
             // Create or update chart with multiple accounts data
-            createMultiAccountChart(accountsData, overlay);
+            createMultiAccountChart(accountsData);
             
         } catch (error) {
             console.error('Error fetching chart data:', error);
@@ -252,96 +184,15 @@
         }
     }
     
-    // Function to load chart data based on current selection mode
+    // Function to load chart data - always loads multiple accounts
     function loadChartData() {
-        const showAll = document.getElementById('show-all-accounts').checked;
-        
-        if (showAll) {
-            return loadMultipleAccountsData();
-        } else {
-            return loadSingleAccountData();
-        }
+        return loadMultipleAccountsData();
     }
     
-    // Function to create a chart for a single account
-    function createSingleAccountChart(data) {
-        const ctx = document.getElementById('balanceChart').getContext('2d');
-        
-        // Destroy existing chart if it exists
-        if (chart) {
-            chart.destroy();
-        }
-        
-        // Create new chart
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.dates,
-                datasets: [{
-                    label: `${data.account_name} Balance`,
-                    data: data.balances,
-                    backgroundColor: chartColors[0].backgroundColor,
-                    borderColor: chartColors[0].borderColor,
-                    borderWidth: 2,
-                    tension: 0.1,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            unit: 'day',
-                            displayFormats: {
-                                day: 'MMM d, yyyy'
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
-                    },
-                    y: {
-                        beginAtZero: false,  // Don't force y-axis to start at 0
-                        title: {
-                            display: true,
-                            text: `Balance (${data.currency})`
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return formatCurrency(value, data.currency);
-                            }
-                        },
-                        // Find the minimum value in the data and set as y-axis minimum
-                        // with a small buffer (5% below lowest value)
-                        suggestedMin: Math.min(...data.balances) * 0.95
-                    }
-                },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return formatCurrency(context.parsed.y, data.currency);
-                            }
-                        }
-                    },
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Account Balance Evolution'
-                    }
-                }
-            }
-        });
-    }
+    // Removed single account chart function as it's no longer needed
     
     // Function to create a chart for multiple accounts
-    function createMultiAccountChart(accountsData, overlay) {
+    function createMultiAccountChart(accountsData) {
         const ctx = document.getElementById('balanceChart').getContext('2d');
         
         // Destroy existing chart if it exists
@@ -360,7 +211,7 @@
                 borderColor: chartColors[colorIndex].borderColor,
                 borderWidth: 2,
                 tension: 0.1,
-                fill: overlay ? false : true,  // Only fill if not overlaying
+                fill: true,  // Always fill the area under the line
                 // Use point styles to differentiate lines
                 pointStyle: ['circle', 'triangle', 'rect', 'crossRot', 'star'][index % 5]
             };
@@ -429,7 +280,7 @@
                     },
                     title: {
                         display: true,
-                        text: overlay ? 'Account Balances (Overlay)' : 'Account Balances Comparison'
+                        text: 'Account Balances Comparison'
                     }
                 }
             }
@@ -438,55 +289,29 @@
     
     // Event handlers setup
     document.addEventListener('DOMContentLoaded', function() {
-        // Set up toggle functionality
-        const showAllCheckbox = document.getElementById('show-all-accounts');
-        showAllCheckbox.addEventListener('change', function() {
-            toggleAccountSelection();
-        });
-        
-        // Set up overlay toggle
-        const overlayCheckbox = document.getElementById('overlay-graphs');
-        overlayCheckbox.addEventListener('change', function() {
-            if (showAllCheckbox.checked) {
-                // Reload multi-account data with new overlay setting
-                loadMultipleAccountsData();
-            }
-        });
-        
         // Handle form submission
         document.getElementById('filter-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            loadChartData();
+            loadMultipleAccountsData();
         });
         
-        // Update when single account selection changes
-        document.getElementById('account').addEventListener('change', function() {
-            if (!showAllCheckbox.checked) {
-                loadSingleAccountData();
-            }
-        });
-        
-        // Update when multi-account checkboxes change
+        // Update when account checkboxes change
         document.querySelectorAll('.account-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
-                if (showAllCheckbox.checked) {
-                    // Ensure at least one checkbox is selected
-                    const anyChecked = Array.from(
-                        document.querySelectorAll('.account-checkbox')
-                    ).some(cb => cb.checked);
-                    
-                    if (!anyChecked) {
-                        this.checked = true;
-                        alert('At least one account must be selected.');
-                    } else {
-                        loadMultipleAccountsData();
-                    }
+                // Ensure at least one checkbox is selected
+                const anyChecked = Array.from(
+                    document.querySelectorAll('.account-checkbox')
+                ).some(cb => cb.checked);
+                
+                if (!anyChecked) {
+                    this.checked = true;
+                    alert('At least one account must be selected.');
                 }
             });
         });
         
         // Load initial chart data
-        loadChartData();
+        loadMultipleAccountsData();
     });
 </script>
 {% endblock %}

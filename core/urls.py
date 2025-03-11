@@ -54,4 +54,7 @@ urlpatterns = [
     path('transaction/<int:pk>/update/', views.transaction_update, name='transaction_update'),
     path('transaction/<int:pk>/delete/', views.transaction_delete, name='transaction_delete'),
     path('transaction/<int:pk>/duplicate/', views.transaction_duplicate, name='transaction_duplicate'),
+    
+    # Currency selection
+    path('set-currency/', views.set_currency, name='set_currency'),
 ]

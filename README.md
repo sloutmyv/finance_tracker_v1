@@ -179,5 +179,4 @@ Future development plans include:
 - **AI Categorization**: Smart transaction categorization based on historical patterns
 
 ## A faire 
-- Permettre à l'utilisateur de choisir la devise dans les analyse
-- Corriger la création automatique des catégories et centre de coute transfert 
+- Gérer le pluriel dans les catégories 
