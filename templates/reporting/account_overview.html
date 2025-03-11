@@ -1,0 +1,441 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load i18n_extras %}
+
+{% block title %}{% translate_json "Account Overview" %}{% endblock %}
+
+{% block extra_css %}
+<!-- Chart.js library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .chart-container {
+        position: relative;
+        height: 60vh;
+        width: 100%;
+    }
+    
+    .filter-form {
+        margin-bottom: 20px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    
+    .color-box {
+        width: 15px;
+        height: 15px;
+        margin-right: 5px;
+        border: 1px solid rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4 mt-4">
+    <div class="col-md-12">
+        <h2>{% translate_json "Account Overview" %}</h2>
+        <p class="text-muted">{% translate_json "Overview of account balances by family member" %}</p>
+    </div>
+</div>
+
+<!-- Total household assets summary -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card bg-primary text-white">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="card-title m-0">{% translate_json "Total Household Assets" %}</h4>
+                    <p class="text-white-50 m-0">{% translate_json "as of today" %}</p>
+                </div>
+                <div>
+                    <h2 class="fw-bold m-0" id="total-household-assets">-</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <div class="row">
+                    <div class="col-md-12">
+                        <form id="filter-form" class="filter-form">
+                            <div class="row">
+                                <div class="col-md-10">
+                                    <div class="form-group">
+                                        <label for="display_currency">{% translate_json "Display Currency" %}</label>
+                                        <select class="form-select" id="display_currency" name="display_currency">
+                                            {% for currency_code, currency_name in supported_currencies %}
+                                                <option value="{{ currency_code }}" {% if currency_code == selected_currency %}selected{% endif %}>
+                                                    {{ currency_name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        {% translate_json "Apply" %}
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container mb-5">
+                    <canvas id="accountOverviewChart"></canvas>
+                </div>
+                
+                <h4 class="mt-5 mb-3">{% translate_json "Household Asset Distribution" %}</h4>
+                <div class="row">
+                    <div class="col-md-12 col-lg-8">
+                        <div class="chart-container" style="height: 50vh;">
+                            <canvas id="assetDistributionChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-12 col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                {% translate_json "Family Member Shares" %}
+                            </div>
+                            <div class="card-body">
+                                <div id="pieChartLegend" class="row">
+                                    <!-- Pie chart legend items will be dynamically added here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Chart configurations
+    let barChart = null;
+    let pieChart = null;
+    
+    // Colors for different accounts
+    const accountColors = [
+        { backgroundColor: 'rgba(75, 192, 192, 0.7)', borderColor: 'rgba(75, 192, 192, 1)' },
+        { backgroundColor: 'rgba(255, 159, 64, 0.7)', borderColor: 'rgba(255, 159, 64, 1)' },
+        { backgroundColor: 'rgba(153, 102, 255, 0.7)', borderColor: 'rgba(153, 102, 255, 1)' },
+        { backgroundColor: 'rgba(54, 162, 235, 0.7)', borderColor: 'rgba(54, 162, 235, 1)' },
+        { backgroundColor: 'rgba(255, 99, 132, 0.7)', borderColor: 'rgba(255, 99, 132, 1)' },
+        { backgroundColor: 'rgba(255, 206, 86, 0.7)', borderColor: 'rgba(255, 206, 86, 1)' }
+    ];
+    
+    // Pie chart colors with higher opacity
+    const pieColors = [
+        'rgba(75, 192, 192, 0.9)',
+        'rgba(255, 159, 64, 0.9)',
+        'rgba(153, 102, 255, 0.9)',
+        'rgba(54, 162, 235, 0.9)',
+        'rgba(255, 99, 132, 0.9)',
+        'rgba(255, 206, 86, 0.9)'
+    ];
+    
+    // Function to format currency
+    function formatCurrency(value, currency) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency
+        }).format(value);
+    }
+    
+    // Function to load chart data
+    async function loadChartData() {
+        const displayCurrency = document.getElementById('display_currency').value;
+        
+        // Show loading indication
+        document.getElementById('accountOverviewChart').style.opacity = 0.5;
+        document.getElementById('assetDistributionChart').style.opacity = 0.5;
+        
+        try {
+            // Fetch data for account overview
+            const response = await fetch(`{% url 'account_overview' %}?display_currency=${displayCurrency}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            
+            // Restore opacity
+            document.getElementById('accountOverviewChart').style.opacity = 1;
+            document.getElementById('assetDistributionChart').style.opacity = 1;
+            
+            // Create or update bar chart
+            createBarChart(data);
+            
+            // Create or update pie chart
+            createPieChart(data);
+            
+        } catch (error) {
+            console.error('Error fetching chart data:', error);
+            document.getElementById('accountOverviewChart').style.opacity = 1;
+            document.getElementById('assetDistributionChart').style.opacity = 1;
+            alert('Error loading chart data. Please try again.');
+        }
+    }
+    
+    // Function to create account overview bar chart
+    function createBarChart(data) {
+        const ctx = document.getElementById('accountOverviewChart').getContext('2d');
+        
+        // Update total household assets display
+        const totalHouseholdAssets = calculateTotalAssets(data);
+        document.getElementById('total-household-assets').textContent = 
+            formatCurrency(totalHouseholdAssets, data.currency);
+        
+        // Destroy existing chart if it exists
+        if (barChart) {
+            barChart.destroy();
+        }
+        
+        // Extract labels (family members only, no total)
+        const labels = data.members.map(member => member.name);
+        
+        // Prepare datasets (one for each account type)
+        const datasets = [];
+        
+        // Helper function to calculate total assets
+        function calculateTotalAssets(data) {
+            let total = 0;
+            // Sum all member account balances
+            data.members.forEach(member => {
+                member.accounts.forEach(account => {
+                    total += account.balance;
+                });
+            });
+            return total;
+        }
+        
+        // Loop through account types
+        data.account_types.forEach((accountType, index) => {
+            const colorIndex = index % accountColors.length;
+            
+            // Prepare data for each member
+            const accountValues = [];
+            
+            // Add data for each member
+            data.members.forEach(member => {
+                const accountValue = member.accounts.find(acc => acc.type_id === accountType.id)?.balance || 0;
+                accountValues.push(accountValue);
+            });
+            
+            // Add dataset for this account type
+            datasets.push({
+                label: accountType.name,
+                data: accountValues,
+                backgroundColor: accountColors[colorIndex].backgroundColor,
+                borderColor: accountColors[colorIndex].borderColor,
+                borderWidth: 1
+            });
+        });
+        
+        // Create stacked bar chart
+        barChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: '{% translate_json "Family Members" %}'
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: `{% translate_json "Balance" %} (${data.currency})`
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value, data.currency);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.parsed.y;
+                                return `${label}: ${formatCurrency(value, data.currency)}`;
+                            }
+                        }
+                    },
+                    legend: {
+                        display: true, // Show the legend
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: '{% translate_json "Account Balances by Family Member" %}'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Function to create pie chart for household asset distribution by family member
+    function createPieChart(data) {
+        const ctx = document.getElementById('assetDistributionChart').getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (pieChart) {
+            pieChart.destroy();
+        }
+        
+        // Calculate totals for each member and family accounts
+        const pieData = [];
+        const pieLabels = [];
+        const pieBackgroundColors = [];
+        
+        // Calculate member totals
+        data.members.forEach((member, index) => {
+            let memberTotal = 0;
+            
+            // Sum all account balances for this member
+            member.accounts.forEach(account => {
+                memberTotal += account.balance;
+            });
+            
+            if (memberTotal > 0) {
+                pieLabels.push(member.name);
+                pieData.push(memberTotal);
+                pieBackgroundColors.push(pieColors[index % pieColors.length]);
+            }
+        });
+        
+        // Create pie chart
+        pieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: pieLabels,
+                datasets: [{
+                    data: pieData,
+                    backgroundColor: pieBackgroundColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const percentage = ((value / pieData.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
+                                return `${label}: ${formatCurrency(value, data.currency)} (${percentage}%)`;
+                            }
+                        }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'right'
+                    },
+                    title: {
+                        display: true,
+                        text: '{% translate_json "Family Member Asset Distribution" %}'
+                    }
+                }
+            }
+        });
+        
+        // Update the pie chart legend
+        updatePieChartLegend(data);
+    }
+    
+    // Function to update the pie chart legend with member percentages
+    function updatePieChartLegend(data) {
+        const legendContainer = document.getElementById('pieChartLegend');
+        legendContainer.innerHTML = '';
+        
+        // Calculate total household assets
+        const totalHouseholdAssets = data.members.reduce((sum, member) => {
+            const memberTotal = member.accounts.reduce((memberSum, account) => memberSum + account.balance, 0);
+            return sum + memberTotal;
+        }, 0);
+        
+        // Create legend items for each member with their percentage
+        data.members.forEach((member, index) => {
+            // Calculate member total
+            const memberTotal = member.accounts.reduce((sum, account) => sum + account.balance, 0);
+            if (memberTotal <= 0) return;
+            
+            const percentage = ((memberTotal / totalHouseholdAssets) * 100).toFixed(1);
+            
+            const legendItem = document.createElement('div');
+            legendItem.className = 'col-12 mb-2';
+            
+            const itemContainer = document.createElement('div');
+            itemContainer.className = 'd-flex align-items-center justify-content-between';
+            
+            const leftSide = document.createElement('div');
+            leftSide.className = 'd-flex align-items-center';
+            
+            const colorBox = document.createElement('div');
+            colorBox.className = 'color-box me-2';
+            colorBox.style.backgroundColor = pieColors[index % pieColors.length];
+            
+            const labelText = document.createElement('span');
+            labelText.textContent = member.name;
+            
+            const valueText = document.createElement('div');
+            valueText.className = 'ms-auto text-end';
+            valueText.innerHTML = `<strong>${formatCurrency(memberTotal, data.currency)}</strong><br/>
+                                  <small class="text-muted">${percentage}%</small>`;
+            
+            leftSide.appendChild(colorBox);
+            leftSide.appendChild(labelText);
+            
+            itemContainer.appendChild(leftSide);
+            itemContainer.appendChild(valueText);
+            
+            legendItem.appendChild(itemContainer);
+            legendContainer.appendChild(legendItem);
+        });
+    }
+    
+    // Event handlers setup
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle form submission
+        document.getElementById('filter-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            loadChartData();
+        });
+        
+        // Load initial chart data
+        loadChartData();
+    });
+</script>
+{% endblock %}

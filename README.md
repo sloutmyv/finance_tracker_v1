@@ -180,3 +180,5 @@ Future development plans include:
 
 ## A faire 
 - Gérer le pluriel dans les catégories 
+- Pas la bonne conversion dans l'analyse des recette 
+- Pas la bonne tendance mensuelle pour les transactions récurente 

@@ -19,6 +19,9 @@ urlpatterns = [
     
     # Reporting & Analytics URLs
     path('reporting/balance-evolution/', views.balance_evolution, name='balance_evolution'),
+    path('reporting/account-overview/', views.account_overview, name='account_overview'),
+    path('reporting/expense-analysis/', views.expense_analysis, name='expense_analysis'),
+    path('reporting/income-analysis/', views.income_analysis, name='income_analysis'),
     
     # Financial Environment URLs
     path('financial/', views.financial_settings, name='financial_settings'),

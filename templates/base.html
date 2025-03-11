@@ -109,9 +109,31 @@
                                 {% translate_json "Reporting & Analytics" %}
                             </a>
                             <ul class="dropdown-menu">
+                                <!-- Balance Evolution submenu -->
                                 <li><a class="dropdown-item" href="{% url 'balance_evolution' %}">
                                     <i class="bi bi-graph-up me-2"></i>{% translate_json "Balance Evolution" %}
                                 </a></li>
+                                
+                                <!-- Account Overview submenu -->
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item" href="{% url 'account_overview' %}">
+                                        <i class="bi bi-bar-chart-fill me-2"></i>{% translate_json "Account Overview" %}
+                                    </a>
+                                </li>
+                                
+                                <!-- Expense Analysis submenu -->
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item" href="{% url 'expense_analysis' %}">
+                                        <i class="bi bi-cash-stack me-2"></i>{% translate_json "Expense Analysis" %}
+                                    </a>
+                                </li>
+                                
+                                <!-- Income Analysis submenu -->
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item" href="{% url 'income_analysis' %}">
+                                        <i class="bi bi-graph-up-arrow me-2"></i>{% translate_json "Income Analysis" %}
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                     {% endif %}

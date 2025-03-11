@@ -612,13 +612,9 @@ class Transaction(models.Model):
                     print(f"DEBUG: Transaction {self.id} - current date {current_date} is before start date {start_date}")
                     return []  # No instances to show if we're before the start date
                 
-                # Check 3: Cap end date at the current date + 1 year for better performance
+                # Check 3: Cap end date at the current date for display purposes
                 # This only limits the *display*, not the validity of the recurring transaction
-                max_display_date = date(
-                    year=current_date.year + 1,
-                    month=current_date.month,
-                    day=current_date.day
-                )
+                max_display_date = current_date
                 
                 # Use the earlier of original end_date or max_display_date
                 display_end_date = min(end_date, max_display_date)

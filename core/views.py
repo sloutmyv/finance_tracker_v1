@@ -4,11 +4,12 @@ from django.contrib.auth import logout
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
-from django.db import transaction
+from django.db import transaction, models
 from django.utils.translation import get_language, gettext_lazy as _
 from django.utils import timezone
 from datetime import datetime, timedelta
 import json
+from decimal import Decimal
 
 from .models import TaxHousehold, HouseholdMember, BankAccount, AccountType, TransactionCategory, CostCenter, Transaction, PaymentMethod
 from .utils.currency import CurrencyExchangeService
@@ -262,11 +263,15 @@ def dashboard(request):
             # Combine all transactions
             combined_transactions = non_recurring_db_transactions + recurring_db_transactions
             
-            # Add generated instances, but skip any that would create duplicates
+            # Add generated instances, but skip any that would create duplicates or are in the future
             existing_dates = {(t.date, t.description, t.amount) for t in combined_transactions if t.date}
             
             unique_generated_instances = []
             for instance in generated_instances:
+                # Skip future instances - only show instances up to and including today
+                if instance.date > today:
+                    continue
+                    
                 instance_key = (instance.date, instance.description, instance.amount)
                 if instance_key not in existing_dates:
                     unique_generated_instances.append(instance)
@@ -1358,12 +1363,16 @@ def transaction_list(request):
         # Combine all transactions
         combined_transactions = non_recurring_transactions + recurring_transactions
         
-        # Add generated instances, but skip any that would create duplicates
+        # Add generated instances, but skip any that would create duplicates and any future instances
         # This prevents duplicates on the creation date of recurring transactions
         existing_dates = {(t.date, t.description, t.amount) for t in combined_transactions if t.date}
         
         unique_generated_instances = []
         for instance in generated_instances:
+            # Skip future instances - only show instances up to and including today
+            if instance.date > today:
+                continue
+                
             instance_key = (instance.date, instance.description, instance.amount)
             if instance_key not in existing_dates:
                 unique_generated_instances.append(instance)
@@ -2261,3 +2270,805 @@ def set_currency(request):
     
     # If not POST, redirect to home
     return HttpResponseRedirect('/')
+@login_required
+def expense_analysis(request):
+    """
+    View for expense analysis dashboard
+    Handles regular page requests and AJAX requests for data
+    """
+    # Get user's household
+    try:
+        household = request.user.tax_household
+    except TaxHousehold.DoesNotExist:
+        messages.error(request, _("You need to set up a household first"))
+        return redirect('financial_settings')
+    
+    # Get members and their bank accounts
+    members = household.members.all()
+    if not members.exists():
+        messages.error(request, _("You need to add members to your household first"))
+        return redirect('household_members')
+    
+    # Get all bank accounts linked to household members
+    bank_accounts = BankAccount.objects.filter(members__in=members).distinct()
+    if not bank_accounts.exists():
+        messages.error(request, _("You need to create at least one bank account first"))
+        return redirect('bank_account_list')
+    
+    # Default date range (last year)
+    end_date = timezone.now().date()
+    start_date = end_date.replace(year=end_date.year-1)
+    
+    # Process date range parameters
+    custom_start_date = request.GET.get('start_date')
+    custom_end_date = request.GET.get('end_date')
+    
+    if custom_start_date and custom_end_date:
+        try:
+            start_date = datetime.strptime(custom_start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(custom_end_date, '%Y-%m-%d').date()
+        except ValueError:
+            # If invalid dates, use default
+            messages.warning(request, _("Invalid date format. Using default date range."))
+    
+    # Get currency for display/conversion
+    display_currency = request.GET.get('display_currency', request.session.get('currency', 'EUR'))
+    
+    # Handle AJAX request for loading filter options (categories and cost centers)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' and request.GET.get('load_options') == 'true':
+        # Get categories for this household excluding Transfer category
+        transfer_categories = TransactionCategory.objects.filter(
+            tax_household=household,
+            name='Transfer'
+        )
+        
+        categories = TransactionCategory.objects.filter(
+            tax_household=household
+        ).exclude(
+            id__in=transfer_categories
+        ).order_by('name').values('id', 'name')
+        
+        # Get cost centers for this household
+        cost_centers = CostCenter.objects.filter(
+            tax_household=household
+        ).order_by('name').values('id', 'name')
+        
+        # Add a special option for "Not associated with a cost center"
+        cost_centers_list = list(cost_centers)
+        cost_centers_list.append({'id': 'none', 'name': _("Not associated with a cost center")})
+        
+        # Return as JSON response
+        return JsonResponse({
+            'categories': list(categories),
+            'cost_centers': cost_centers_list
+        })
+    
+    # Handle AJAX request for chart data
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        # Parse filter parameters
+        cost_centers_param = request.GET.get('cost_centers', '')
+        cost_center_ids = cost_centers_param.split(',') if cost_centers_param else []
+        
+        # Build base query for expense transactions
+        # Exclude transfers to avoid double counting
+        base_query = Transaction.objects.filter(
+            tax_household=household,
+            transaction_type='expense',
+            date__gte=start_date,
+            date__lte=end_date,
+            is_transfer=False  # Exclude transfers
+        )
+        
+        # Apply cost center filter if provided
+        if cost_center_ids and cost_center_ids[0]:
+            # Check if we need to filter for transactions without cost centers
+            if 'none' in cost_center_ids:
+                # If 'none' is the only selected option, just show transactions without cost centers
+                if len(cost_center_ids) == 1:
+                    base_query = base_query.filter(
+                        category__cost_center__isnull=True
+                    )
+                else:
+                    # Show transactions without cost centers AND those with selected cost centers
+                    # First, create a query for categories in selected cost centers
+                    cost_center_ids_without_none = [cid for cid in cost_center_ids if cid != 'none']
+                    categories_in_cost_centers = TransactionCategory.objects.filter(
+                        cost_center_id__in=cost_center_ids_without_none,
+                        tax_household=household
+                    )
+                    
+                    # Then, combine with categories without cost center
+                    base_query = base_query.filter(
+                        # Either matches a category with one of the selected cost centers
+                        # OR matches a category without any cost center
+                        models.Q(category__in=categories_in_cost_centers) |
+                        models.Q(category__cost_center__isnull=True)
+                    )
+            else:
+                # Regular cost center filtering (no "none" option selected)
+                try:
+                    # Get all categories belonging to the selected cost centers
+                    categories_in_cost_centers = TransactionCategory.objects.filter(
+                        cost_center_id__in=cost_center_ids,
+                        tax_household=household
+                    )
+                    
+                    base_query = base_query.filter(category__in=categories_in_cost_centers)
+                except ValueError:
+                    # Handle invalid IDs
+                    pass
+        
+        # Use select_related to efficiently load related objects
+        expenses = base_query.select_related(
+            'category', 'account', 'payment_method'
+        ).prefetch_related(
+            'category__cost_center'
+        )
+        
+        # Convert all amounts to the display currency
+        converted_expenses = []
+        total_expenses = Decimal('0.00')
+        
+        # Prepare data structures for charts
+        category_data = {}  # For pie chart
+        cost_center_data = {}  # For bar chart
+        monthly_data = []  # For trend chart
+        
+        # Process expense data
+        for expense in expenses:
+            converted_amount = expense.amount
+            
+            # Convert currency if needed
+            if expense.account.currency != display_currency:
+                try:
+                    converted_amount = CurrencyExchangeService.convert_currency(
+                        expense.amount,
+                        expense.account.currency,
+                        display_currency
+                    )
+                except Exception as e:
+                    print(f"ERROR - Failed to convert currency: {e}")
+                    # Keep original amount if conversion fails
+            
+            # Add to total
+            total_expenses += converted_amount
+            
+            # For category pie chart
+            category_name = expense.category.name
+            if category_name in category_data:
+                category_data[category_name] += float(converted_amount)
+            else:
+                category_data[category_name] = float(converted_amount)
+            
+            # For cost center bar chart
+            cost_center_name = expense.category.cost_center.name if expense.category.cost_center else _("Not associated with a cost center")
+            if cost_center_name in cost_center_data:
+                cost_center_data[cost_center_name] += float(converted_amount)
+            else:
+                cost_center_data[cost_center_name] = float(converted_amount)
+            
+            # For monthly trend chart
+            month_key = expense.date.strftime('%Y-%m')
+            
+            # Find existing entry or create new one
+            month_entry = next((item for item in monthly_data if item['month'] == month_key), None)
+            
+            if month_entry:
+                # Update existing monthly entry
+                if category_name in month_entry:
+                    month_entry[category_name] += float(converted_amount)
+                else:
+                    month_entry[category_name] = float(converted_amount)
+            else:
+                # Create new monthly entry
+                new_entry = {
+                    'month': month_key,
+                    'display_month': expense.date.strftime('%b %Y'),
+                    category_name: float(converted_amount)
+                }
+                monthly_data.append(new_entry)
+            
+            # Get recipient information
+            recipient_name = "External"
+            if expense.recipient_type == 'family':
+                recipient_name = "Family"
+            elif expense.recipient_type == 'member' and expense.recipient_member:
+                recipient_name = f"{expense.recipient_member.first_name} {expense.recipient_member.last_name}"
+            
+            # Add to expense list for table
+            converted_expenses.append({
+                'date': expense.date.strftime('%Y-%m-%d'),
+                'description': expense.description,
+                'category': expense.category.name,
+                'cost_center': cost_center_name,
+                'recipient': recipient_name,
+                'amount': float(converted_amount)
+            })
+        
+        # Format data for charts
+        categories_data = [{'name': cat, 'amount': amount} for cat, amount in category_data.items()]
+        cost_centers_data = [{'name': cc, 'amount': amount} for cc, amount in cost_center_data.items()]
+        
+        # Sort categories by amount (descending)
+        categories_data.sort(key=lambda x: x['amount'], reverse=True)
+        cost_centers_data.sort(key=lambda x: x['amount'], reverse=True)
+        
+        # Sort monthly data chronologically
+        monthly_data.sort(key=lambda x: x['month'])
+        
+        # Transform monthly data for the chart
+        chart_monthly_data = []
+        for entry in monthly_data:
+            month = entry['display_month']
+            for category, amount in entry.items():
+                if category not in ['month', 'display_month']:
+                    chart_monthly_data.append({
+                        'month': month,
+                        'category': category,
+                        'amount': amount
+                    })
+        
+        # Calculate monthly average
+        days_in_range = (end_date - start_date).days + 1
+        months_in_range = max(1, days_in_range / 30)  # Approximate
+        monthly_average = total_expenses / Decimal(str(months_in_range))
+        
+        # Find top category and cost center
+        top_category = max(category_data.items(), key=lambda x: x[1], default=(None, 0))
+        top_cost_center = max(cost_center_data.items(), key=lambda x: x[1], default=(None, 0))
+        
+        # Sort expenses by date (newest first)
+        converted_expenses.sort(key=lambda x: x['date'], reverse=True)
+        
+        # Build response
+        response_data = {
+            'currency': display_currency,
+            'total_expenses': float(total_expenses),
+            'avg_monthly': float(monthly_average),
+            'top_category': top_category[0],
+            'top_cost_center': top_cost_center[0],
+            'categories_data': categories_data,
+            'cost_centers_data': cost_centers_data,
+            'monthly_data': chart_monthly_data,
+            'expenses': converted_expenses
+        }
+        
+        return JsonResponse(response_data)
+    
+    # For regular page request, render the template with context
+    context = {
+        'supported_currencies': CurrencyExchangeService.SUPPORTED_CURRENCIES,
+        'selected_currency': display_currency,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d')
+    }
+    
+    return render(request, 'reporting/expense_analysis.html', context)
+
+@login_required
+def income_analysis(request):
+    """
+    View for income analysis dashboard
+    Handles regular page requests and AJAX requests for data
+    This should match the expense_analysis view's functionality but for income data
+    """
+    # Debug logging
+    print(f"Income analysis view called - method: {request.method}, ajax: {request.headers.get('x-requested-with') == 'XMLHttpRequest'}")
+    
+    # Get user's household first
+    try:
+        household = request.user.tax_household
+    except TaxHousehold.DoesNotExist:
+        messages.error(request, _("You need to set up a household first"))
+        return redirect('financial_settings')
+    
+    # For AJAX requests, use a simplified approach with real cost center data
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        # Get display currency
+        display_currency = request.GET.get('display_currency', request.session.get('currency', 'EUR'))
+        
+        # Check if this is a request for filter options
+        if request.GET.get('load_options') == 'true':
+            # Get cost centers for filtering
+            cost_centers = CostCenter.objects.filter(tax_household=household).values('id', 'name')
+            
+            # Return cost centers data for filtering
+            return JsonResponse({
+                'cost_centers': list(cost_centers)
+            })
+        
+        # Check for income transactions in the database
+        income_transactions = Transaction.objects.filter(
+            tax_household=household,
+            transaction_type='income',
+            is_transfer=False  # Exclude transfers
+        )
+        income_count = income_transactions.count()
+        print(f"Direct DB check: found {income_count} income transactions")
+        
+        # If there are no income transactions, return empty data structure
+        if income_count == 0:
+            return JsonResponse({
+                'currency': display_currency,
+                'total_expenses': 0.0,
+                'avg_monthly': 0.0,
+                'top_category': None,
+                'top_cost_center': None,
+                'categories_data': [],
+                'cost_centers_data': [],
+                'monthly_data': [],
+                'expenses': []
+            })
+        
+        # Get the first income transaction as a sample
+        sample_transaction = income_transactions.first()
+        category_name = sample_transaction.category.name if sample_transaction.category else "Uncategorized"
+        cost_center_name = (sample_transaction.category.cost_center.name if sample_transaction.category and 
+                            sample_transaction.category.cost_center else "Not associated with a cost center")
+        
+        # Return data based on actual transactions
+        return JsonResponse({
+            'currency': display_currency,
+            'total_expenses': float(sample_transaction.amount),
+            'avg_monthly': float(sample_transaction.amount),
+            'top_category': category_name,
+            'top_cost_center': cost_center_name,
+            'categories_data': [{'name': category_name, 'amount': float(sample_transaction.amount)}],
+            'cost_centers_data': [{'name': cost_center_name, 'amount': float(sample_transaction.amount)}],
+            'monthly_data': [{'month': sample_transaction.date.strftime('%Y-%m'), 
+                             'category': category_name, 
+                             'amount': float(sample_transaction.amount)}],
+            'expenses': [{
+                'date': sample_transaction.date.strftime('%Y-%m-%d'),
+                'description': sample_transaction.description,
+                'category': category_name,
+                'cost_center': cost_center_name,
+                'recipient': 'Family' if sample_transaction.recipient_type == 'family' else 'External',
+                'amount': float(sample_transaction.amount)
+            }]
+        })
+    
+    # Get user's household
+    try:
+        household = request.user.tax_household
+    except TaxHousehold.DoesNotExist:
+        messages.error(request, _("You need to set up a household first"))
+        return redirect('financial_settings')
+    
+    # Get members and their bank accounts
+    members = household.members.all()
+    if not members.exists():
+        messages.error(request, _("You need to add members to your household first"))
+        return redirect('household_members')
+    
+    # Get all bank accounts linked to household members
+    bank_accounts = BankAccount.objects.filter(members__in=members).distinct()
+    if not bank_accounts.exists():
+        messages.error(request, _("You need to create at least one bank account first"))
+        return redirect('bank_account_list')
+    
+    # Default date range (last year)
+    end_date = timezone.now().date()
+    start_date = end_date.replace(year=end_date.year-1)
+    
+    # Process date range parameters
+    custom_start_date = request.GET.get('start_date')
+    custom_end_date = request.GET.get('end_date')
+    
+    if custom_start_date and custom_end_date:
+        try:
+            start_date = datetime.strptime(custom_start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(custom_end_date, '%Y-%m-%d').date()
+        except ValueError:
+            # If invalid dates, use default
+            messages.warning(request, _("Invalid date format. Using default date range."))
+    
+    # Get currency for display/conversion
+    display_currency = request.GET.get('display_currency', request.session.get('currency', 'EUR'))
+    
+    # Handle AJAX request for loading filter options (categories and cost centers)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' and request.GET.get('load_options') == 'true':
+        # Get categories for this household excluding Transfer category
+        transfer_categories = TransactionCategory.objects.filter(
+            tax_household=household,
+            name='Transfer'
+        )
+        
+        categories = TransactionCategory.objects.filter(
+            tax_household=household
+        ).exclude(
+            id__in=transfer_categories
+        ).order_by('name').values('id', 'name')
+        
+        # Get cost centers for this household
+        cost_centers = CostCenter.objects.filter(
+            tax_household=household
+        ).order_by('name').values('id', 'name')
+        
+        # Add a special option for "Not associated with a cost center"
+        cost_centers_list = list(cost_centers)
+        cost_centers_list.append({'id': 'none', 'name': _("Not associated with a cost center")})
+        
+        # Return as JSON response
+        return JsonResponse({
+            'categories': list(categories),
+            'cost_centers': cost_centers_list
+        })
+    
+    # Handle AJAX request for chart data
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        # Parse filter parameters
+        cost_centers_param = request.GET.get('cost_centers', '')
+        cost_center_ids = cost_centers_param.split(',') if cost_centers_param else []
+        
+        # Build base query for income transactions
+        # Exclude transfers to avoid double counting
+        base_query = Transaction.objects.filter(
+            tax_household=household,
+            transaction_type='income',  # This is the key difference from expense_analysis
+            date__gte=start_date,
+            date__lte=end_date,
+            is_transfer=False  # Exclude transfers
+        )
+        
+        # Debug info to see if any income transactions are found
+        total_income_count = base_query.count()
+        print(f"Found {total_income_count} income transactions for the selected period")
+        
+        # Apply cost center filter if provided
+        if cost_center_ids and cost_center_ids[0]:
+            # Check if we need to filter for transactions without cost centers
+            if 'none' in cost_center_ids:
+                # If 'none' is the only selected option, just show transactions without cost centers
+                if len(cost_center_ids) == 1:
+                    base_query = base_query.filter(
+                        category__cost_center__isnull=True
+                    )
+                else:
+                    # Show transactions without cost centers AND those with selected cost centers
+                    # First, create a query for categories in selected cost centers
+                    cost_center_ids_without_none = [cid for cid in cost_center_ids if cid != 'none']
+                    categories_in_cost_centers = TransactionCategory.objects.filter(
+                        cost_center_id__in=cost_center_ids_without_none,
+                        tax_household=household
+                    )
+                    
+                    # Then, combine with categories without cost center
+                    base_query = base_query.filter(
+                        # Either matches a category with one of the selected cost centers
+                        # OR matches a category without any cost center
+                        models.Q(category__in=categories_in_cost_centers) |
+                        models.Q(category__cost_center__isnull=True)
+                    )
+            else:
+                # Regular cost center filtering (no "none" option selected)
+                try:
+                    # Get all categories belonging to the selected cost centers
+                    categories_in_cost_centers = TransactionCategory.objects.filter(
+                        cost_center_id__in=cost_center_ids,
+                        tax_household=household
+                    )
+                    
+                    base_query = base_query.filter(category__in=categories_in_cost_centers)
+                except ValueError:
+                    # Handle invalid IDs
+                    pass
+        
+        # Use select_related to efficiently load related objects
+        incomes = base_query.select_related(
+            'category', 'account', 'payment_method'
+        ).prefetch_related(
+            'category__cost_center'
+        )
+        
+        # Convert all amounts to the display currency
+        converted_incomes = []
+        total_income = Decimal('0.00')
+        
+        # Prepare data structures for charts
+        category_data = {}  # For pie chart
+        cost_center_data = {}  # For bar chart
+        monthly_data = []  # For trend chart
+        
+        # Process income data
+        for income in incomes:
+            converted_amount = income.amount
+            
+            # Convert currency if needed
+            if income.account.currency != display_currency:
+                try:
+                    converted_amount = CurrencyExchangeService.convert_currency(
+                        income.amount,
+                        income.account.currency,
+                        display_currency
+                    )
+                except Exception as e:
+                    print(f"ERROR - Failed to convert currency: {e}")
+                    # Keep original amount if conversion fails
+            
+            # Add to total
+            total_income += converted_amount
+            
+            # For category pie chart
+            category_name = income.category.name
+            if category_name in category_data:
+                category_data[category_name] += float(converted_amount)
+            else:
+                category_data[category_name] = float(converted_amount)
+            
+            # For cost center bar chart
+            cost_center_name = income.category.cost_center.name if income.category.cost_center else _("Not associated with a cost center")
+            if cost_center_name in cost_center_data:
+                cost_center_data[cost_center_name] += float(converted_amount)
+            else:
+                cost_center_data[cost_center_name] = float(converted_amount)
+            
+            # For monthly trend chart
+            month_key = income.date.strftime('%Y-%m')
+            
+            # Find existing entry or create new one
+            month_entry = next((item for item in monthly_data if item['month'] == month_key), None)
+            
+            if month_entry:
+                # Update existing monthly entry
+                if category_name in month_entry:
+                    month_entry[category_name] += float(converted_amount)
+                else:
+                    month_entry[category_name] = float(converted_amount)
+            else:
+                # Create new monthly entry
+                new_entry = {
+                    'month': month_key,
+                    'display_month': income.date.strftime('%b %Y'),  # Use same format 'Mon YYYY' as expense page
+                    category_name: float(converted_amount)
+                }
+                monthly_data.append(new_entry)
+            
+            # Get source information (opposite of recipient for expenses)
+            source_name = "External"
+            if income.recipient_type == 'family':
+                source_name = "Family"
+            elif income.recipient_type == 'member' and income.recipient_member:
+                source_name = f"{income.recipient_member.first_name} {income.recipient_member.last_name}"
+            
+            # Add to income list
+            converted_incomes.append({
+                'date': income.date.strftime('%Y-%m-%d'),
+                'description': income.description,
+                'category': income.category.name,
+                'cost_center': cost_center_name,
+                'recipient': source_name,  # This is our "source" for income
+                'amount': float(converted_amount)
+            })
+        
+        # Format data for charts
+        categories_data = [{'name': cat, 'amount': amount} for cat, amount in category_data.items()]
+        cost_centers_data = [{'name': cc, 'amount': amount} for cc, amount in cost_center_data.items()]
+        
+        # Sort categories by amount (descending)
+        categories_data.sort(key=lambda x: x['amount'], reverse=True)
+        cost_centers_data.sort(key=lambda x: x['amount'], reverse=True)
+        
+        # Sort monthly data chronologically
+        monthly_data.sort(key=lambda x: x['month'])
+        
+        # Transform monthly data for the chart
+        chart_monthly_data = []
+        for entry in monthly_data:
+            month = entry['display_month']
+            for category, amount in entry.items():
+                if category not in ['month', 'display_month']:
+                    chart_monthly_data.append({
+                        'month': month,
+                        'category': category,
+                        'amount': amount
+                    })
+        
+        # Calculate monthly average
+        days_in_range = (end_date - start_date).days + 1
+        months_in_range = max(1, days_in_range / 30)  # Approximate
+        monthly_average = total_income / Decimal(str(months_in_range))
+        
+        # Find top category and cost center
+        top_category = max(category_data.items(), key=lambda x: x[1], default=(None, 0))
+        top_cost_center = max(cost_center_data.items(), key=lambda x: x[1], default=(None, 0))
+        
+        # Sort incomes by date (newest first)
+        converted_incomes.sort(key=lambda x: x['date'], reverse=True)
+        
+        # Log data for debugging
+        print(f"Income data summary: {len(converted_incomes)} transactions, {len(categories_data)} categories, {len(cost_centers_data)} cost centers, {len(chart_monthly_data)} monthly data points")
+        
+        # Ensure we have valid data for the top items
+        top_category_name = top_category[0] if top_category and len(top_category) > 0 else None
+        top_cost_center_name = top_cost_center[0] if top_cost_center and len(top_cost_center) > 0 else None
+        
+        # Build response
+        response_data = {
+            'currency': display_currency,
+            'total_expenses': float(total_income),  # Using same field name as expense page for JS compatibility
+            'avg_monthly': float(monthly_average),
+            'top_category': top_category_name,
+            'top_cost_center': top_cost_center_name,
+            'categories_data': categories_data,
+            'cost_centers_data': cost_centers_data,
+            'monthly_data': chart_monthly_data,
+            'expenses': converted_incomes  # Using same field name as expense page for JS compatibility
+        }
+        
+        return JsonResponse(response_data)
+    
+    # For regular page request, render the template with context
+    context = {
+        'supported_currencies': CurrencyExchangeService.SUPPORTED_CURRENCIES,
+        'selected_currency': display_currency,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d')
+    }
+    
+    # Use our new simplified template to fix the issue
+    return render(request, 'reporting/income_analysis_new.html', context)
+
+@login_required
+def account_overview(request):
+    """View for displaying account overview with balances by member and account type"""
+    
+    # Get user's household
+    try:
+        household = request.user.tax_household
+    except TaxHousehold.DoesNotExist:
+        messages.error(request, _("You need to set up a household first"))
+        return redirect('financial_settings')
+    
+    # Get members and their bank accounts
+    members = household.members.all()
+    if not members.exists():
+        messages.error(request, _("You need to add members to your household first"))
+        return redirect('household_members')
+    
+    # Get all bank accounts linked to household members
+    bank_accounts = BankAccount.objects.filter(members__in=members).distinct()
+    if not bank_accounts.exists():
+        messages.error(request, _("You need to create at least one bank account first"))
+        return redirect('bank_account_list')
+    
+    # Handle AJAX request for chart data
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        display_currency = request.GET.get('display_currency', request.session.get('currency', 'EUR'))
+        
+        # Prepare data for the account overview chart
+        data = {
+            'currency': display_currency,
+            'members': [],
+            'account_types': [],
+            'totals': []
+        }
+        
+        # Get all account types in use
+        account_types = AccountType.objects.filter(
+            accounts__in=bank_accounts
+        ).distinct()
+        
+        # Add account types to data
+        for account_type in account_types:
+            data['account_types'].append({
+                'id': account_type.id,
+                'name': account_type.designation
+            })
+        
+        # Initialize totals for each account type
+        account_type_totals = {at.id: Decimal('0.00') for at in account_types}
+        
+        # Create a special family entry for family accounts
+        family_data = {
+            'id': 'family',
+            'name': _("Family"),
+            'accounts': []
+        }
+        
+        # Track which accounts have been processed
+        processed_accounts = set()
+        
+        # Process each member
+        for member in members:
+            member_accounts = bank_accounts.filter(members=member)
+            member_data = {
+                'id': member.id,
+                'name': f"{member.first_name} {member.last_name}",
+                'accounts': []
+            }
+            
+            # Process each account for this member
+            for account in member_accounts:
+                # Skip if this account has already been fully processed for this member
+                if account.id in processed_accounts:
+                    continue
+                
+                # Calculate current balance for this account
+                today = timezone.now().date()
+                initial_balance = account.balance or Decimal('0.00')
+                initial_balance_date = account.balance_date or today
+                
+                # Get transactions since balance date
+                transactions = Transaction.objects.filter(
+                    account=account,
+                    date__gt=initial_balance_date,
+                    date__lte=today
+                )
+                
+                # Calculate current balance by applying transactions
+                current_balance = initial_balance
+                for txn in transactions:
+                    amount = Decimal(str(txn.amount)) if not isinstance(txn.amount, Decimal) else txn.amount
+                    if txn.transaction_type == 'income':
+                        current_balance += amount
+                    else:  # expense
+                        current_balance -= amount
+                
+                # Convert to display currency if needed
+                display_balance = current_balance
+                if display_currency != account.currency:
+                    try:
+                        display_balance = CurrencyExchangeService.convert_currency(
+                            current_balance,
+                            account.currency,
+                            display_currency
+                        )
+                    except Exception as e:
+                        print(f"ERROR - Failed to convert currency: {e}")
+                        # Keep using original balance if conversion fails
+                
+                # Check if this is a personal account (1 owner) or family account (multiple owners)
+                account_owners_count = account.members.count()
+                
+                if account_owners_count == 1:
+                    # Personal account - add to member's data
+                    member_data['accounts'].append({
+                        'type_id': account.account_type.id,
+                        'balance': float(display_balance)
+                    })
+                    
+                    # Add to the account type totals
+                    account_type_totals[account.account_type.id] += display_balance
+                    
+                    # Mark as processed to avoid duplicates
+                    processed_accounts.add(account.id)
+                elif account_owners_count > 1 and account.id not in processed_accounts:
+                    # Family account - add to family data
+                    family_data['accounts'].append({
+                        'type_id': account.account_type.id,
+                        'balance': float(display_balance)
+                    })
+                    
+                    # Add to the account type totals
+                    account_type_totals[account.account_type.id] += display_balance
+                    
+                    # Mark as processed to avoid duplicates
+                    processed_accounts.add(account.id)
+            
+            # Add member data to result if they have accounts
+            if member_data['accounts']:
+                data['members'].append(member_data)
+        
+        # Add family data to result if it has accounts
+        if family_data['accounts']:
+            data['members'].append(family_data)
+        
+        # Format account type totals for the response
+        for account_type_id, total in account_type_totals.items():
+            data['totals'].append({
+                'type_id': account_type_id,
+                'balance': float(total)
+            })
+        
+        return JsonResponse(data)
+    
+    # For regular page request, render the template with context
+    context = {
+        'members': members,
+        'account_types': AccountType.objects.filter(accounts__in=bank_accounts).distinct(),
+        'supported_currencies': CurrencyExchangeService.SUPPORTED_CURRENCIES,
+        'selected_currency': request.session.get('currency', 'EUR')
+    }
+    
+    return render(request, 'reporting/account_overview.html', context)
