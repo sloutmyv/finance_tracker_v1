@@ -2314,7 +2314,7 @@ def expense_analysis(request):
     # Get currency for display/conversion
     display_currency = request.GET.get('display_currency', request.session.get('currency', 'EUR'))
     
-    # Handle AJAX request for loading filter options (categories and cost centers)
+    # Handle AJAX request for loading filter options (categories, cost centers, and bank accounts)
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' and request.GET.get('load_options') == 'true':
         # Get categories for this household excluding Transfer category
         transfer_categories = TransactionCategory.objects.filter(
@@ -2337,10 +2337,16 @@ def expense_analysis(request):
         cost_centers_list = list(cost_centers)
         cost_centers_list.append({'id': 'none', 'name': _("Not associated with a cost center")})
         
+        # Get bank accounts for this household
+        all_bank_accounts = BankAccount.objects.filter(
+            members__in=members
+        ).distinct().order_by('name').values('id', 'name', 'currency')
+        
         # Return as JSON response
         return JsonResponse({
             'categories': list(categories),
-            'cost_centers': cost_centers_list
+            'cost_centers': cost_centers_list,
+            'bank_accounts': list(all_bank_accounts)
         })
     
     # Handle AJAX request for chart data
@@ -2349,6 +2355,10 @@ def expense_analysis(request):
         cost_centers_param = request.GET.get('cost_centers', '')
         cost_center_ids = cost_centers_param.split(',') if cost_centers_param else []
         
+        # Parse bank account filter parameters
+        bank_accounts_param = request.GET.get('bank_accounts', '')
+        bank_account_ids = bank_accounts_param.split(',') if bank_accounts_param else []
+        
         # Build base query for expense transactions
         # Exclude transfers to avoid double counting
         base_query = Transaction.objects.filter(
@@ -2356,6 +2366,14 @@ def expense_analysis(request):
             transaction_type='expense',
             date__gte=start_date,
             date__lte=end_date,
+            is_transfer=False  # Exclude transfers
+        )
+        
+        # Get all recurring expense transactions for generating instances
+        recurring_transactions = Transaction.objects.filter(
+            tax_household=household,
+            transaction_type='expense',
+            is_recurring=True,
             is_transfer=False  # Exclude transfers
         )
         
@@ -2398,12 +2416,77 @@ def expense_analysis(request):
                     # Handle invalid IDs
                     pass
         
-        # Use select_related to efficiently load related objects
-        expenses = base_query.select_related(
+        # Apply bank account filter if provided
+        if bank_account_ids and bank_account_ids[0]:
+            base_query = base_query.filter(account_id__in=bank_account_ids)
+            # Also filter recurring transactions to only include those with the selected accounts
+            recurring_transactions = recurring_transactions.filter(account_id__in=bank_account_ids)
+        
+        # Get base database transactions (non-recurring + parent recurring transactions)
+        db_expenses = base_query.select_related(
             'category', 'account', 'payment_method'
         ).prefetch_related(
             'category__cost_center'
         )
+        
+        # Generate instances for recurring transactions to include in the analysis
+        recurring_instances = []
+        today = timezone.now().date()
+        
+        # Generate instances for all recurring transactions
+        for transaction in recurring_transactions:
+            try:
+                # Generate recurring instances for this transaction
+                instances = transaction.generate_recurring_instances(current_date=today)
+                
+                # Filter instances to include only those in the selected date range
+                filtered_instances = [
+                    instance for instance in instances 
+                    if instance.date >= start_date and instance.date <= end_date
+                ]
+                
+                # Apply cost center filters to instances if needed
+                if cost_center_ids and cost_center_ids[0]:
+                    if 'none' in cost_center_ids:
+                        # Complex filter for "none" option (handled below)
+                        pass
+                    else:
+                        # Filter by categories in selected cost centers
+                        categories_in_cost_centers = TransactionCategory.objects.filter(
+                            cost_center_id__in=cost_center_ids,
+                            tax_household=household
+                        )
+                        filtered_instances = [
+                            instance for instance in filtered_instances
+                            if instance.category in categories_in_cost_centers
+                        ]
+                
+                # Add filtered instances to our list
+                recurring_instances.extend(filtered_instances)
+                
+            except Exception as e:
+                print(f"Error generating recurring instances for expense analysis: {e}")
+        
+        # Combine actual transactions with recurring instances, avoiding duplicates
+        # Create a dictionary to track expenses we've already seen, using date+description+amount as key
+        seen_expenses = {}
+        all_expenses = []
+        
+        # Add database expenses first
+        for expense in db_expenses:
+            key = (expense.date, expense.description, expense.amount)
+            seen_expenses[key] = expense
+            all_expenses.append(expense)
+        
+        # Then add recurring instances, avoiding duplicates
+        for instance in recurring_instances:
+            key = (instance.date, instance.description, instance.amount)
+            if key not in seen_expenses:
+                seen_expenses[key] = instance
+                all_expenses.append(instance)
+        
+        # Use combined expenses for analysis
+        expenses = all_expenses
         
         # Convert all amounts to the display currency
         converted_expenses = []
@@ -2689,10 +2772,16 @@ def income_analysis(request):
         cost_centers_list = list(cost_centers)
         cost_centers_list.append({'id': 'none', 'name': _("Not associated with a cost center")})
         
+        # Get bank accounts for this household
+        all_bank_accounts = BankAccount.objects.filter(
+            members__in=members
+        ).distinct().order_by('name').values('id', 'name', 'currency')
+        
         # Return as JSON response
         return JsonResponse({
             'categories': list(categories),
-            'cost_centers': cost_centers_list
+            'cost_centers': cost_centers_list,
+            'bank_accounts': list(all_bank_accounts)
         })
     
     # Handle AJAX request for chart data
@@ -2701,6 +2790,10 @@ def income_analysis(request):
         cost_centers_param = request.GET.get('cost_centers', '')
         cost_center_ids = cost_centers_param.split(',') if cost_centers_param else []
         
+        # Parse bank account filter parameters
+        bank_accounts_param = request.GET.get('bank_accounts', '')
+        bank_account_ids = bank_accounts_param.split(',') if bank_accounts_param else []
+        
         # Build base query for income transactions
         # Exclude transfers to avoid double counting
         base_query = Transaction.objects.filter(
@@ -2708,6 +2801,14 @@ def income_analysis(request):
             transaction_type='income',  # This is the key difference from expense_analysis
             date__gte=start_date,
             date__lte=end_date,
+            is_transfer=False  # Exclude transfers
+        )
+        
+        # Get all recurring income transactions for generating instances
+        recurring_transactions = Transaction.objects.filter(
+            tax_household=household,
+            transaction_type='income',
+            is_recurring=True,
             is_transfer=False  # Exclude transfers
         )
         
@@ -2754,12 +2855,77 @@ def income_analysis(request):
                     # Handle invalid IDs
                     pass
         
-        # Use select_related to efficiently load related objects
-        incomes = base_query.select_related(
+        # Apply bank account filter if provided
+        if bank_account_ids and bank_account_ids[0]:
+            base_query = base_query.filter(account_id__in=bank_account_ids)
+            # Also filter recurring transactions to only include those with the selected accounts
+            recurring_transactions = recurring_transactions.filter(account_id__in=bank_account_ids)
+        
+        # Get base database transactions (non-recurring + parent recurring transactions)
+        db_incomes = base_query.select_related(
             'category', 'account', 'payment_method'
         ).prefetch_related(
             'category__cost_center'
         )
+        
+        # Generate instances for recurring transactions to include in the analysis
+        recurring_instances = []
+        today = timezone.now().date()
+        
+        # Generate instances for all recurring transactions
+        for transaction in recurring_transactions:
+            try:
+                # Generate recurring instances for this transaction
+                instances = transaction.generate_recurring_instances(current_date=today)
+                
+                # Filter instances to include only those in the selected date range
+                filtered_instances = [
+                    instance for instance in instances 
+                    if instance.date >= start_date and instance.date <= end_date
+                ]
+                
+                # Apply cost center filters to instances if needed
+                if cost_center_ids and cost_center_ids[0]:
+                    if 'none' in cost_center_ids:
+                        # Complex filter for "none" option (handled below)
+                        pass
+                    else:
+                        # Filter by categories in selected cost centers
+                        categories_in_cost_centers = TransactionCategory.objects.filter(
+                            cost_center_id__in=cost_center_ids,
+                            tax_household=household
+                        )
+                        filtered_instances = [
+                            instance for instance in filtered_instances
+                            if instance.category in categories_in_cost_centers
+                        ]
+                
+                # Add filtered instances to our list
+                recurring_instances.extend(filtered_instances)
+                
+            except Exception as e:
+                print(f"Error generating recurring instances for income analysis: {e}")
+        
+        # Combine actual transactions with recurring instances, avoiding duplicates
+        # Create a dictionary to track incomes we've already seen, using date+description+amount as key
+        seen_incomes = {}
+        all_incomes = []
+        
+        # Add database incomes first
+        for income in db_incomes:
+            key = (income.date, income.description, income.amount)
+            seen_incomes[key] = income
+            all_incomes.append(income)
+        
+        # Then add recurring instances, avoiding duplicates
+        for instance in recurring_instances:
+            key = (instance.date, instance.description, instance.amount)
+            if key not in seen_incomes:
+                seen_incomes[key] = instance
+                all_incomes.append(instance)
+        
+        # Use combined incomes for analysis
+        incomes = all_incomes
         
         # Convert all amounts to the display currency
         converted_incomes = []
@@ -2906,8 +3072,8 @@ def income_analysis(request):
         'end_date': end_date.strftime('%Y-%m-%d')
     }
     
-    # Use our new simplified template to fix the issue
-    return render(request, 'reporting/income_analysis_new.html', context)
+    # Use the rebuilt income analysis template
+    return render(request, 'reporting/income_analysis.html', context)
 
 @login_required
 def account_overview(request):

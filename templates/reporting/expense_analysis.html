@@ -104,7 +104,7 @@
                     
                     <div class="row mt-3">
                         <!-- Cost Centers -->
-                        <div class="col-md-12 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label for="cost_centers">{% translate_json "Cost Centers" %}</label>
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="costCenterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -120,6 +120,28 @@
                                     <div class="dropdown-divider"></div>
                                     <div id="cost-center-checkboxes">
                                         <!-- Cost centers will be dynamically added here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Bank Accounts -->
+                        <div class="col-md-6 mb-3">
+                            <label for="bank_accounts">{% translate_json "Bank Accounts" %}</label>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="bankAccountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    {% translate_json "Select Bank Accounts" %}
+                                </button>
+                                <div class="dropdown-menu multiselect-dropdown w-100 p-2" aria-labelledby="bankAccountDropdown">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="select-all-bank-accounts" checked>
+                                        <label class="form-check-label" for="select-all-bank-accounts">
+                                            <strong>{% translate_json "Select All" %}</strong>
+                                        </label>
+                                    </div>
+                                    <div class="dropdown-divider"></div>
+                                    <div id="bank-account-checkboxes">
+                                        <!-- Bank accounts will be dynamically added here -->
                                     </div>
                                 </div>
                             </div>
@@ -327,6 +349,15 @@
             });
             updateCostCenterDropdownText();
         });
+        
+        // Bank accounts select all functionality
+        document.getElementById('select-all-bank-accounts').addEventListener('change', function() {
+            const checked = this.checked;
+            document.querySelectorAll('#bank-account-checkboxes input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = checked;
+            });
+            updateBankAccountDropdownText();
+        });
     }
     
     function updateCostCenterDropdownText() {
@@ -340,6 +371,20 @@
             dropdown.textContent = '{% translate_json "All Cost Centers" %}';
         } else {
             dropdown.textContent = `${checkedBoxes.length} {% translate_json "Cost Centers Selected" %}`;
+        }
+    }
+    
+    function updateBankAccountDropdownText() {
+        const checkboxes = document.querySelectorAll('#bank-account-checkboxes input[type="checkbox"]');
+        const checkedBoxes = document.querySelectorAll('#bank-account-checkboxes input[type="checkbox"]:checked');
+        const dropdown = document.getElementById('bankAccountDropdown');
+        
+        if (checkedBoxes.length === 0) {
+            dropdown.textContent = '{% translate_json "No Bank Accounts Selected" %}';
+        } else if (checkedBoxes.length === checkboxes.length) {
+            dropdown.textContent = '{% translate_json "All Bank Accounts" %}';
+        } else {
+            dropdown.textContent = `${checkedBoxes.length} {% translate_json "Bank Accounts Selected" %}`;
         }
     }
     
@@ -394,9 +439,42 @@
                 });
             });
             
+            // Populate bank account checkboxes
+            const bankAccountContainer = document.getElementById('bank-account-checkboxes');
+            bankAccountContainer.innerHTML = '';
+            
+            console.log('Bank accounts data:', data.bank_accounts);
+            
+            data.bank_accounts.forEach(account => {
+                console.log('Processing bank account:', account);
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input bank-account-checkbox" type="checkbox" id="bank-account-${account.id}" 
+                           name="bank_accounts" value="${account.id}" checked>
+                    <label class="form-check-label" for="bank-account-${account.id}">
+                        ${account.name} (${account.currency})
+                    </label>
+                `;
+                bankAccountContainer.appendChild(div);
+            });
+            
+            // Add change listeners to bank account checkboxes
+            document.querySelectorAll('.bank-account-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateBankAccountDropdownText();
+                    
+                    // Update select all checkbox
+                    const allChecked = document.querySelectorAll('.bank-account-checkbox:checked').length === 
+                                      document.querySelectorAll('.bank-account-checkbox').length;
+                    document.getElementById('select-all-bank-accounts').checked = allChecked;
+                });
+            });
+            
             // Update dropdown text
             // updateCategoryDropdownText() - Removed category dropdown
             updateCostCenterDropdownText();
+            updateBankAccountDropdownText();
             
         } catch (error) {
             console.error('Error loading filter options:', error);
@@ -438,6 +516,15 @@
             
         console.log('Cost center IDs being sent:', costCenterIds);
         
+        // Get selected bank accounts
+        const bankAccountCheckboxes = document.querySelectorAll('.bank-account-checkbox:checked');
+        console.log('Selected bank account checkboxes:', bankAccountCheckboxes);
+        
+        const bankAccountIds = Array.from(bankAccountCheckboxes)
+            .map(checkbox => checkbox.value);
+            
+        console.log('Bank account IDs being sent:', bankAccountIds);
+        
         // Show loading state
         document.getElementById('total-expenses').textContent = '...';
         document.getElementById('avg-monthly').textContent = '...';
@@ -455,7 +542,8 @@
                 start_date: startDate,
                 end_date: endDate,
                 display_currency: displayCurrency,
-                cost_centers: costCenterIds.join(',')
+                cost_centers: costCenterIds.join(','),
+                bank_accounts: bankAccountIds.join(',')
             });
             
             // Make AJAX request
@@ -789,7 +877,15 @@
         
         // Get unique categories and months
         const months = data.monthly_data.map(item => item.month);
-        const uniqueMonths = [...new Set(months)].sort();
+        // We need to sort months chronologically (in format MMM YYYY) not alphabetically
+        const uniqueMonths = [...new Set(months)];
+        
+        // Sort months chronologically by converting to Date objects first
+        uniqueMonths.sort((a, b) => {
+            const dateA = new Date(a);
+            const dateB = new Date(b);
+            return dateA - dateB;
+        });
         
         // Group expenses by category
         const categoriesMap = new Map();

@@ -104,7 +104,7 @@
                     
                     <div class="row mt-3">
                         <!-- Cost Centers -->
-                        <div class="col-md-12 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label for="cost_centers">{% translate_json "Cost Centers" %}</label>
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="costCenterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -124,6 +124,28 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Bank Accounts -->
+                        <div class="col-md-6 mb-3">
+                            <label for="bank_accounts">{% translate_json "Bank Accounts" %}</label>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="bankAccountDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    {% translate_json "Select Bank Accounts" %}
+                                </button>
+                                <div class="dropdown-menu multiselect-dropdown w-100 p-2" aria-labelledby="bankAccountDropdown">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="select-all-bank-accounts" checked>
+                                        <label class="form-check-label" for="select-all-bank-accounts">
+                                            <strong>{% translate_json "Select All" %}</strong>
+                                        </label>
+                                    </div>
+                                    <div class="dropdown-divider"></div>
+                                    <div id="bank-account-checkboxes">
+                                        <!-- Bank accounts will be dynamically added here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -137,12 +159,12 @@
         <div class="card" style="background-color: #28a745;">
             <div class="card-body">
                 <h5 class="card-title text-white">{% translate_json "Total Income" %}</h5>
-                <h3 class="card-text fw-bold text-white" id="total-expenses">-</h3>
+                <h3 class="card-text fw-bold text-white" id="total-income">-</h3>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card" style="background-color: #20c997;">
+        <div class="card" style="background-color: #196f3d;">
             <div class="card-body">
                 <h5 class="card-title text-white">{% translate_json "Avg. Monthly" %}</h5>
                 <h3 class="card-text fw-bold text-white" id="avg-monthly">-</h3>
@@ -150,7 +172,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card" style="background-color: #17a2b8;">
+        <div class="card" style="background-color: #117a8b;">
             <div class="card-body">
                 <h5 class="card-title text-white">{% translate_json "Top Category" %}</h5>
                 <h3 class="card-text fw-bold text-white" id="top-category">-</h3>
@@ -158,10 +180,10 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card" style="background-color: #6f42c1;">
+        <div class="card" style="background-color: #ffc107;">
             <div class="card-body">
-                <h5 class="card-title text-white">{% translate_json "Top Cost Center" %}</h5>
-                <h3 class="card-text fw-bold text-white" id="top-cost-center">-</h3>
+                <h5 class="card-title text-dark">{% translate_json "Top Cost Center" %}</h5>
+                <h3 class="card-text fw-bold text-dark" id="top-cost-center">-</h3>
             </div>
         </div>
     </div>
@@ -198,7 +220,7 @@
     </div>
 </div>
 
-<!-- Beneficiary Doughnut Chart -->
+<!-- Source Doughnut Chart -->
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="card">
@@ -209,12 +231,12 @@
                 <div class="row">
                     <div class="col-md-7">
                         <div class="chart-container">
-                            <canvas id="beneficiaryChart"></canvas>
+                            <canvas id="sourceChart"></canvas>
                         </div>
                     </div>
                     <div class="col-md-5">
                         <div class="table-responsive">
-                            <table class="table table-sm table-hover" id="beneficiaryTable">
+                            <table class="table table-sm table-hover" id="sourceTable">
                                 <thead>
                                     <tr>
                                         <th>{% translate_json "Source" %}</th>
@@ -223,7 +245,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Beneficiary data will be added here dynamically -->
+                                    <!-- Source data will be added here dynamically -->
                                 </tbody>
                             </table>
                         </div>
@@ -257,7 +279,7 @@
     // Chart configurations
     let categoryPieChart = null;
     let costCenterBarChart = null;
-    let beneficiaryChart = null;
+    let sourceChart = null;
     let monthlyTrendChart = null;
     
     // Colors for charts
@@ -296,9 +318,6 @@
     
     // Function to initialize date pickers
     function initializeDatePickers() {
-        // The values are already set in the HTML from the Django template context
-        // So we just need to initialize flatpickr on top of existing values
-        
         // Get existing values from the input fields
         const startDateValue = document.getElementById('start_date').value;
         const endDateValue = document.getElementById('end_date').value;
@@ -327,6 +346,15 @@
             });
             updateCostCenterDropdownText();
         });
+        
+        // Bank accounts select all functionality
+        document.getElementById('select-all-bank-accounts').addEventListener('change', function() {
+            const checked = this.checked;
+            document.querySelectorAll('#bank-account-checkboxes input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = checked;
+            });
+            updateBankAccountDropdownText();
+        });
     }
     
     function updateCostCenterDropdownText() {
@@ -343,7 +371,21 @@
         }
     }
     
-    // Function to load categories and cost centers
+    function updateBankAccountDropdownText() {
+        const checkboxes = document.querySelectorAll('#bank-account-checkboxes input[type="checkbox"]');
+        const checkedBoxes = document.querySelectorAll('#bank-account-checkboxes input[type="checkbox"]:checked');
+        const dropdown = document.getElementById('bankAccountDropdown');
+        
+        if (checkedBoxes.length === 0) {
+            dropdown.textContent = '{% translate_json "No Bank Accounts Selected" %}';
+        } else if (checkedBoxes.length === checkboxes.length) {
+            dropdown.textContent = '{% translate_json "All Bank Accounts" %}';
+        } else {
+            dropdown.textContent = `${checkedBoxes.length} {% translate_json "Bank Accounts Selected" %}`;
+        }
+    }
+    
+    // Function to load filter options
     async function loadFilterOptions() {
         try {
             const response = await fetch('{% url "income_analysis" %}?load_options=true', {
@@ -359,13 +401,10 @@
             
             const data = await response.json();
             
-            // Category checkboxes removed
-            
             // Populate cost center checkboxes
             const costCenterContainer = document.getElementById('cost-center-checkboxes');
             costCenterContainer.innerHTML = '';
             
-            // Debug the cost centers
             console.log('Cost centers data:', data.cost_centers);
             
             data.cost_centers.forEach(costCenter => {
@@ -394,13 +433,50 @@
                 });
             });
             
+            // Populate bank account checkboxes
+            const bankAccountContainer = document.getElementById('bank-account-checkboxes');
+            bankAccountContainer.innerHTML = '';
+            
+            console.log('Bank accounts data:', data.bank_accounts);
+            
+            data.bank_accounts.forEach(account => {
+                console.log('Processing bank account:', account);
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input bank-account-checkbox" type="checkbox" id="bank-account-${account.id}" 
+                           name="bank_accounts" value="${account.id}" checked>
+                    <label class="form-check-label" for="bank-account-${account.id}">
+                        ${account.name} (${account.currency})
+                    </label>
+                `;
+                bankAccountContainer.appendChild(div);
+            });
+            
+            // Add change listeners to bank account checkboxes
+            document.querySelectorAll('.bank-account-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateBankAccountDropdownText();
+                    
+                    // Update select all checkbox
+                    const allChecked = document.querySelectorAll('.bank-account-checkbox:checked').length === 
+                                      document.querySelectorAll('.bank-account-checkbox').length;
+                    document.getElementById('select-all-bank-accounts').checked = allChecked;
+                });
+            });
+            
             // Update dropdown text
-            // updateCategoryDropdownText() - Removed category dropdown
             updateCostCenterDropdownText();
+            updateBankAccountDropdownText();
             
         } catch (error) {
             console.error('Error loading filter options:', error);
-            alert('Failed to load categories and cost centers. Please refresh the page.');
+            // Set default text for dropdowns even if there's an error
+            document.getElementById('costCenterDropdown').textContent = '{% translate_json "All Cost Centers" %}';
+            document.getElementById('bankAccountDropdown').textContent = '{% translate_json "All Bank Accounts" %}';
+            
+            // Still try to load income data
+            loadIncomeData().catch(err => console.error("Failed to load income data:", err));
         }
     }
     
@@ -427,8 +503,6 @@
         
         console.log('Date range for income data:', startDate, 'to', endDate);
         
-        // Categories filter removed
-            
         // Get selected cost centers
         const costCenterCheckboxes = document.querySelectorAll('.cost-center-checkbox:checked');
         console.log('Selected cost center checkboxes:', costCenterCheckboxes);
@@ -438,30 +512,35 @@
             
         console.log('Cost center IDs being sent:', costCenterIds);
         
+        // Get selected bank accounts
+        const bankAccountCheckboxes = document.querySelectorAll('.bank-account-checkbox:checked');
+        console.log('Selected bank account checkboxes:', bankAccountCheckboxes);
+        
+        const bankAccountIds = Array.from(bankAccountCheckboxes)
+            .map(checkbox => checkbox.value);
+            
+        console.log('Bank account IDs being sent:', bankAccountIds);
+        
         // Show loading state
-        document.getElementById('total-expenses').textContent = '...';
+        document.getElementById('total-income').textContent = '...';
         document.getElementById('avg-monthly').textContent = '...';
         document.getElementById('top-category').textContent = '...';
         document.getElementById('top-cost-center').textContent = '...';
         // Show loading animation in charts
         document.getElementById('categoryPieChart').style.opacity = 0.5;
         document.getElementById('costCenterBarChart').style.opacity = 0.5;
-        document.getElementById('beneficiaryChart').style.opacity = 0.5;
+        document.getElementById('sourceChart').style.opacity = 0.5;
         document.getElementById('monthlyTrendChart').style.opacity = 0.5;
         
         try {
-            console.log('Preparing to load income data with dates:', startDate, 'to', endDate, 'currency:', displayCurrency);
-            
             // Build query parameters
             const params = new URLSearchParams({
                 start_date: startDate,
                 end_date: endDate,
                 display_currency: displayCurrency,
-                cost_centers: costCenterIds.join(',')
+                cost_centers: costCenterIds.join(','),
+                bank_accounts: bankAccountIds.join(',')
             });
-            
-            // Show params being sent (for debugging)
-            console.log('Income analysis request params:', params.toString());
             
             // Make AJAX request
             const response = await fetch(`{% url "income_analysis" %}?${params.toString()}`, {
@@ -477,23 +556,14 @@
             
             const data = await response.json();
             
-            // Debug the response data
-            console.log('Income analysis data received:', data);
-            console.log('Number of data points:', {
-                categories: data.categories_data?.length || 0,
-                cost_centers: data.cost_centers_data?.length || 0,
-                monthly_data: data.monthly_data?.length || 0,
-                expenses: data.expenses?.length || 0
-            });
-            
             // Restore opacity for charts
             document.getElementById('categoryPieChart').style.opacity = 1;
             document.getElementById('costCenterBarChart').style.opacity = 1;
-            document.getElementById('beneficiaryChart').style.opacity = 1;
+            document.getElementById('sourceChart').style.opacity = 1;
             document.getElementById('monthlyTrendChart').style.opacity = 1;
             
-            // Update summary cards
-            document.getElementById('total-expenses').textContent = formatCurrency(data.total_expenses, data.currency);
+            // Update summary cards - use the data fields from the API
+            document.getElementById('total-income').textContent = formatCurrency(data.total_expenses, data.currency);
             document.getElementById('avg-monthly').textContent = formatCurrency(data.avg_monthly, data.currency);
             document.getElementById('top-category').textContent = data.top_category || '-';
             document.getElementById('top-cost-center').textContent = data.top_cost_center || '-';
@@ -503,19 +573,56 @@
                 // Create or update charts
                 createCategoryPieChart(data);
                 createCostCenterBarChart(data);
-                createBeneficiaryChart(data);
+                createSourceChart(data);
                 createMonthlyTrendChart(data);
+                
+                // Hide the no-data-message if it exists
+                const noDataMessages = document.querySelectorAll('.no-data-message');
+                noDataMessages.forEach(element => {
+                    element.style.display = 'none';
+                });
+                
+                // Show chart containers
+                const chartContainers = document.querySelectorAll('.chart-container');
+                chartContainers.forEach(container => {
+                    container.style.display = 'block';
+                });
             } else {
                 console.log('No income data available for the selected period');
-                // Display a message in each chart container
-                document.getElementById('categoryPieChart').getContext('2d').fillText('{% translate_json "No income data available for the selected period" %}', 10, 50);
-                document.getElementById('costCenterBarChart').getContext('2d').fillText('{% translate_json "No income data available for the selected period" %}', 10, 50);
-                document.getElementById('beneficiaryChart').getContext('2d').fillText('{% translate_json "No income data available for the selected period" %}', 10, 50);
-                document.getElementById('monthlyTrendChart').getContext('2d').fillText('{% translate_json "No income data available for the selected period" %}', 10, 50);
+                
+                // Destroy any existing charts
+                if (categoryPieChart) categoryPieChart.destroy();
+                if (costCenterBarChart) costCenterBarChart.destroy();
+                if (sourceChart) sourceChart.destroy();
+                if (monthlyTrendChart) monthlyTrendChart.destroy();
+                
+                // Hide chart containers
+                const chartContainers = document.querySelectorAll('.chart-container');
+                chartContainers.forEach(container => {
+                    container.style.display = 'none';
+                });
+                
+                // Display "no data" messages
+                const cardBodies = document.querySelectorAll('.card-body');
+                cardBodies.forEach(cardBody => {
+                    // Check if this card-body contains a chart container
+                    if (cardBody.querySelector('.chart-container')) {
+                        // Check if message already exists
+                        let message = cardBody.querySelector('.no-data-message');
+                        if (!message) {
+                            message = document.createElement('div');
+                            message.className = 'no-data-message text-center py-5';
+                            message.innerHTML = '<p class="text-muted">{% translate_json "No income data available for the selected period" %}</p>';
+                            cardBody.appendChild(message);
+                        } else {
+                            message.style.display = 'block';
+                        }
+                    }
+                });
             }
             
         } catch (error) {
-            console.error('Error loading expense data:', error);
+            console.error('Error loading income data:', error);
             // Display error message
             alert('{% translate_json "Error loading income data. Please try again." %}');
         }
@@ -598,11 +705,11 @@
         // Create an object to store all categories we find
         const uniqueCategories = new Set();
         
-        // Process each expense to collect all category data per cost center
-        data.expenses.forEach(expense => {
-            const costCenter = expense.cost_center;
-            const category = expense.category;
-            const amount = expense.amount;
+        // Process each income transaction to collect all category data per cost center
+        data.expenses.forEach(income => {
+            const costCenter = income.cost_center;
+            const category = income.category;
+            const amount = income.amount;
             
             // Add category to unique set
             uniqueCategories.add(category);
@@ -612,7 +719,7 @@
                 categoriesByCostCenter[costCenter] = {};
             }
             
-            // Add this expense to the right category within the cost center
+            // Add this income to the right category within the cost center
             if (!categoriesByCostCenter[costCenter][category]) {
                 categoriesByCostCenter[costCenter][category] = amount;
             } else {
@@ -705,37 +812,37 @@
         });
     }
     
-    // Function to create beneficiary doughnut chart
-    function createBeneficiaryChart(data) {
-        const ctx = document.getElementById('beneficiaryChart').getContext('2d');
+    // Function to create source doughnut chart
+    function createSourceChart(data) {
+        const ctx = document.getElementById('sourceChart').getContext('2d');
         
         // Destroy existing chart if it exists
-        if (beneficiaryChart) {
-            beneficiaryChart.destroy();
+        if (sourceChart) {
+            sourceChart.destroy();
         }
         
-        // Group data by beneficiary
-        const beneficiaryData = {};
-        const beneficiaryTable = document.getElementById('beneficiaryTable').querySelector('tbody');
-        beneficiaryTable.innerHTML = '';
+        // Group data by source (recipient in data)
+        const sourceData = {};
+        const sourceTable = document.getElementById('sourceTable').querySelector('tbody');
+        sourceTable.innerHTML = '';
         
-        // Process each expense to collect data by beneficiary
-        data.expenses.forEach(expense => {
-            // Get the recipient information (could be 'Family', member name, or 'External')
-            const beneficiary = expense.recipient || '{% translate_json "External" %}';
-            const amount = expense.amount;
+        // Process each income to collect data by source
+        data.expenses.forEach(income => {
+            // Get the source information (could be 'Family', member name, or 'External')
+            const source = income.recipient || '{% translate_json "External" %}';
+            const amount = income.amount;
             
-            // If this beneficiary doesn't exist yet, create it
-            if (!beneficiaryData[beneficiary]) {
-                beneficiaryData[beneficiary] = amount;
+            // If this source doesn't exist yet, create it
+            if (!sourceData[source]) {
+                sourceData[source] = amount;
             } else {
-                beneficiaryData[beneficiary] += amount;
+                sourceData[source] += amount;
             }
         });
         
         // Prepare chart data
-        const labels = Object.keys(beneficiaryData);
-        const values = Object.values(beneficiaryData);
+        const labels = Object.keys(sourceData);
+        const values = Object.values(sourceData);
         const backgroundColors = labels.map((_, index) => 
             chartColors[index % chartColors.length]);
         
@@ -749,19 +856,19 @@
             percentage: (values[index] / total * 100).toFixed(1)
         })).sort((a, b) => b.amount - a.amount);
         
-        // Populate beneficiary table
+        // Populate source table
         tableData.forEach(item => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${item.name || 'Unknown'}</td>
+                <td>${item.name}</td>
                 <td class="text-end">${formatCurrency(item.amount, data.currency)}</td>
                 <td class="text-end">${item.percentage}%</td>
-            `; // Added fallback for name
-            beneficiaryTable.appendChild(row);
+            `;
+            sourceTable.appendChild(row);
         });
         
         // Create doughnut chart
-        beneficiaryChart = new Chart(ctx, {
+        sourceChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: labels,
@@ -793,7 +900,7 @@
                     },
                     title: {
                         display: true,
-                        text: '{% translate_json "Where Does Your Income Come From?" %}'
+                        text: '{% translate_json "Where is Your Income Coming From?" %}'
                     }
                 }
             }
@@ -812,52 +919,28 @@
         const datasets = [];
         
         // Get unique categories and months
-        const uniqueCategories = new Set();
-        const uniqueMonthsMap = new Map(); // Map for month string to display string
+        const months = data.monthly_data.map(item => item.month);
+        // We need to sort months chronologically (in format MMM YYYY) not alphabetically
+        const uniqueMonths = [...new Set(months)];
         
-        // Check if we have monthly data
-        if (data.monthly_data && data.monthly_data.length > 0) {
-            data.monthly_data.forEach(item => {
-                if (item.category) uniqueCategories.add(item.category);
-                if (item.month) uniqueMonthsMap.set(item.month, item.month);  // Using month consistently
-            });
-        } else {
-            console.log('No monthly data available for chart');
-        }
-        
-        // Extract sorted months (to ensure chronological order)
-        const uniqueMonths = [...uniqueMonthsMap.keys()].sort();
-        const displayMonths = uniqueMonths.map(m => {
-            // Extract month and year from the string format (assuming 'Mon YYYY' format)
-            const parts = m.split('-');
-            if (parts.length === 2) {
-                const year = parts[0];
-                const month = parts[1];
-                // Format as 'Mon YYYY'
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
-            }
-            return m; // Fallback if unexpected format
+        // Sort months chronologically by converting to Date objects first
+        uniqueMonths.sort((a, b) => {
+            const dateA = new Date(a);
+            const dateB = new Date(b);
+            return dateA - dateB;
         });
         
-        // Group by category for each month
+        // Group income by category
         const categoriesMap = new Map();
-        uniqueCategories.forEach(category => {
-            categoriesMap.set(category, new Array(uniqueMonths.length).fill(0));
-        });
         
-        // Fill in values
-        if (data.monthly_data && data.monthly_data.length > 0) {
-            data.monthly_data.forEach(item => {
-                if (item && item.category && item.month) {
-                    const category = item.category;
-                    const monthIndex = uniqueMonths.indexOf(item.month);
-                    if (monthIndex !== -1 && categoriesMap.has(category)) {
-                        categoriesMap.get(category)[monthIndex] = item.amount;
-                    }
-                }
-            });
-        }
+        data.monthly_data.forEach(item => {
+            if (!categoriesMap.has(item.category)) {
+                categoriesMap.set(item.category, new Array(uniqueMonths.length).fill(0));
+            }
+            
+            const monthIndex = uniqueMonths.indexOf(item.month);
+            categoriesMap.get(item.category)[monthIndex] = item.amount;
+        });
         
         // Create datasets
         let index = 0;
@@ -878,7 +961,7 @@
         monthlyTrendChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: displayMonths,
+                labels: uniqueMonths,
                 datasets: datasets
             },
             options: {
@@ -918,7 +1001,6 @@
         });
     }
     
-    
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize date pickers
@@ -927,10 +1009,14 @@
         // Initialize multiselect dropdowns
         initializeMultiSelectDropdowns();
         
-        // Load filter options (cost centers)
+        // Set default text for dropdowns
+        document.getElementById('costCenterDropdown').textContent = '{% translate_json "All Cost Centers" %}';
+        document.getElementById('bankAccountDropdown').textContent = '{% translate_json "All Bank Accounts" %}';
+        
+        // Load filter options (cost centers, bank accounts) for filtering
         loadFilterOptions().catch(error => {
             console.error("Error loading filter options:", error);
-            // Attempt to continue anyway - the cost centers might not be essential
+            // Still try to load income data even if filter options fail
             loadIncomeData().catch(err => console.error("Failed to load income data:", err));
         });
         
@@ -940,10 +1026,10 @@
             loadIncomeData().catch(err => console.error("Error updating income data:", err));
         });
         
-        // Load initial data with a slight delay
+        // Initial data load with a slight delay to ensure UI is ready
         setTimeout(() => {
-            loadIncomeData().catch(err => console.error("Error loading initial data:", err));
-        }, 800);
+            loadIncomeData().catch(err => console.error("Error loading initial income data:", err));
+        }, 300);
         
         // Handle dropdown menu closing on click inside
         document.querySelectorAll('.multiselect-dropdown').forEach(menu => {
